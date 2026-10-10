@@ -254,3 +254,4 @@ monitoring_reports/
 .DS_Store
 Thumbs.db
 mlflow.db
+data/processed/cases.json
