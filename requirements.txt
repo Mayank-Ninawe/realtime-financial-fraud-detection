@@ -8,3 +8,9 @@ pytest
 xgboost
 scikit-learn
 joblib
+mlflow
+fastapi
+uvicorn
+streamlit
+httpx
+requests

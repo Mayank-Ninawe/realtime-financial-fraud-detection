@@ -1,4 +1,4 @@
-"""Evaluate trained fraud-detection models and select a threshold."""
+"""Evaluate leakage-suspect and realtime-safe fraud models."""
 
 from __future__ import annotations
 
@@ -18,11 +18,7 @@ from sklearn.metrics import (
     recall_score,
 )
 
-from fraud_detection.config import (
-    MODEL_DIR,
-    RANDOM_SEED,
-    REPORT_DIR,
-)
+from fraud_detection.config import MODEL_DIR, REPORT_DIR
 from fraud_detection.data import create_temporal_splits, load_raw_data, validate_raw_data
 from fraud_detection.features import get_feature_matrix, get_target
 
@@ -32,12 +28,8 @@ def select_threshold(
     scores: np.ndarray,
     minimum_precision: float = 0.50,
 ) -> float:
-    """Select the lowest threshold that meets a minimum precision target.
-
-    If no threshold meets the target, return the threshold that maximizes F1.
-    """
+    """Select a validation threshold using a precision constraint."""
     precision, recall, thresholds = precision_recall_curve(y_true, scores)
-
     candidate_indices = np.where(precision[:-1] >= minimum_precision)[0]
 
     if len(candidate_indices) > 0:
@@ -54,26 +46,27 @@ def select_threshold(
 def evaluate_model(
     model_path: Path,
     model_name: str,
+    feature_set: str,
     X_test: pd.DataFrame,
     y_test: pd.Series,
     threshold: float,
-) -> dict:
+) -> tuple[dict, np.ndarray, np.ndarray]:
     """Evaluate a saved model on the untouched test set."""
     model = joblib.load(model_path)
     scores = model.predict_proba(X_test)[:, 1]
     predictions = (scores >= threshold).astype(int)
 
-    average_precision = average_precision_score(y_test, scores)
-    precision = precision_score(y_test, predictions, zero_division=0)
-    recall = recall_score(y_test, predictions, zero_division=0)
     matrix = confusion_matrix(y_test, predictions)
 
     metrics = {
         "model": model_name,
+        "feature_set": feature_set,
         "threshold": threshold,
-        "test_average_precision": float(average_precision),
-        "test_precision": float(precision),
-        "test_recall": float(recall),
+        "test_average_precision": float(average_precision_score(y_test, scores)),
+        "test_precision": float(
+            precision_score(y_test, predictions, zero_division=0)
+        ),
+        "test_recall": float(recall_score(y_test, predictions, zero_division=0)),
         "true_negatives": int(matrix[0, 0]),
         "false_positives": int(matrix[0, 1]),
         "false_negatives": int(matrix[1, 0]),
@@ -84,41 +77,54 @@ def evaluate_model(
 
 
 def run_evaluation() -> None:
-    """Evaluate baseline and XGBoost models on the test set."""
+    """Evaluate both models on the untouched test set."""
     df = load_raw_data()
     validate_raw_data(df)
 
     _, validation_df, test_df = create_temporal_splits(df)
 
-    X_validation = get_feature_matrix(validation_df)
-    y_validation = get_target(validation_df)
+    X_validation_safe = get_feature_matrix(
+        validation_df, feature_set="realtime_safe"
+    )
+    X_test_safe = get_feature_matrix(test_df, feature_set="realtime_safe")
 
-    X_test = get_feature_matrix(test_df)
+    X_validation_leakage = get_feature_matrix(
+        validation_df, feature_set="leakage_suspect"
+    )
+    X_test_leakage = get_feature_matrix(test_df, feature_set="leakage_suspect")
+
+    y_validation = get_target(validation_df)
     y_test = get_target(test_df)
 
-    baseline_model = joblib.load(MODEL_DIR / "baseline_model.joblib")
-    xgboost_model = joblib.load(MODEL_DIR / "xgboost_model.joblib")
+    realtime_model = joblib.load(MODEL_DIR / "realtime_safe_xgboost.joblib")
+    leakage_model = joblib.load(MODEL_DIR / "leakage_suspect_xgboost.joblib")
 
-    baseline_validation_scores = baseline_model.predict_proba(X_validation)[:, 1]
-    xgboost_validation_scores = xgboost_model.predict_proba(X_validation)[:, 1]
+    realtime_validation_scores = realtime_model.predict_proba(
+        X_validation_safe
+    )[:, 1]
+    leakage_validation_scores = leakage_model.predict_proba(
+        X_validation_leakage
+    )[:, 1]
 
-    baseline_threshold = select_threshold(y_validation, baseline_validation_scores)
-    xgboost_threshold = select_threshold(y_validation, xgboost_validation_scores)
+    realtime_threshold = select_threshold(y_validation, realtime_validation_scores)
+    leakage_threshold = select_threshold(y_validation, leakage_validation_scores)
 
-    baseline_metrics, _, baseline_matrix = evaluate_model(
-        MODEL_DIR / "baseline_model.joblib",
-        "baseline",
-        X_test,
+    realtime_metrics, realtime_scores, realtime_matrix = evaluate_model(
+        MODEL_DIR / "realtime_safe_xgboost.joblib",
+        "realtime_safe_xgboost",
+        "realtime_safe",
+        X_test_safe,
         y_test,
-        baseline_threshold,
+        realtime_threshold,
     )
 
-    xgboost_metrics, xgboost_test_scores, xgboost_matrix = evaluate_model(
-        MODEL_DIR / "xgboost_model.joblib",
-        "xgboost",
-        X_test,
+    leakage_metrics, leakage_scores, leakage_matrix = evaluate_model(
+        MODEL_DIR / "leakage_suspect_xgboost.joblib",
+        "leakage_suspect_xgboost",
+        "leakage_suspect",
+        X_test_leakage,
         y_test,
-        xgboost_threshold,
+        leakage_threshold,
     )
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -126,39 +132,47 @@ def run_evaluation() -> None:
     with open(REPORT_DIR / "evaluation_results.json", "w", encoding="utf-8") as file:
         json.dump(
             {
-                "baseline": baseline_metrics,
-                "xgboost": xgboost_metrics,
+                "realtime_safe": realtime_metrics,
+                "leakage_suspect": leakage_metrics,
             },
             file,
             indent=2,
         )
 
-    precision, recall, _ = precision_recall_curve(y_test, xgboost_test_scores)
+    precision, recall, _ = precision_recall_curve(y_test, realtime_scores)
 
     plt.figure(figsize=(8, 5))
-    plt.plot(recall, precision, label="XGBoost")
+    plt.plot(recall, precision, label="Realtime-safe XGBoost")
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title("Precision-Recall Curve — XGBoost Test Set")
+    plt.title("Precision-Recall Curve — Realtime-safe Model")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(REPORT_DIR / "xgboost_precision_recall_curve.png", dpi=150)
+    plt.savefig(REPORT_DIR / "realtime_safe_precision_recall_curve.png", dpi=150)
 
     plt.figure(figsize=(5, 4))
     sns.heatmap(
-        xgboost_matrix,
+        realtime_matrix,
         annot=True,
         fmt="d",
         cmap="Blues",
         xticklabels=["Predicted Legitimate", "Predicted Fraud"],
         yticklabels=["Actual Legitimate", "Actual Fraud"],
     )
-    plt.title("XGBoost Confusion Matrix — Test Set")
+    plt.title("Realtime-safe XGBoost Confusion Matrix")
     plt.tight_layout()
-    plt.savefig(REPORT_DIR / "xgboost_confusion_matrix.png", dpi=150)
+    plt.savefig(REPORT_DIR / "realtime_safe_confusion_matrix.png", dpi=150)
 
-    print(json.dumps({"baseline": baseline_metrics, "xgboost": xgboost_metrics}, indent=2))
+    print(
+        json.dumps(
+            {
+                "realtime_safe": realtime_metrics,
+                "leakage_suspect": leakage_metrics,
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
