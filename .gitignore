@@ -218,3 +218,38 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Virtual environments
+.venv/
+*.py[cod]
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local data and artifacts
+data/raw/*
+data/processed/*
+data/reference/*
+models/
+artifacts/
+reports/
+mlruns/
+mlartifacts/
+monitoring_reports/
+
+# Keep folder structure without committing large files
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/reference/.gitkeep
+!models/.gitkeep
+!artifacts/.gitkeep
+!reports/.gitkeep
+
+# Environment variables and secrets
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
