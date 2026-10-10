@@ -5,3 +5,6 @@ seaborn
 jupyter
 ipykernel
 pytest
+xgboost
+scikit-learn
+joblib
