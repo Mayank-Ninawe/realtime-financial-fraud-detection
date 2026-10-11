@@ -1,90 +1,192 @@
-# Graph Analysis and GNN Feasibility Assessment
+# Graph Feasibility and Fraud-Ring Analysis
 
 ## Objective
 
-Evaluate whether PaySim account relationships provide an explainable graph-based fraud-risk signal and whether a graph neural network is justified for this project.
+This document evaluates whether graph-based analysis can improve fraud detection by identifying suspicious relationships between accounts, transactions, and simulated enrichment entities.
 
-## Graph representation
+The goal is not only to classify an individual transaction as fraudulent, but also to determine whether an account is connected to other suspicious accounts or transactions.
 
-- **Nodes:** PaySim sender and receiver account identifiers (`nameOrig`, `nameDest`)
-- **Directed edges:** Transactions from sender to receiver
-- **Edge attributes:** Transaction count, total amount, average amount, historical fraud count, fraud rate, first step, and last step
-- **Initial graph window:** First 200,000 chronological transaction rows, covering simulation steps 1 through 13
+## Why graph analysis matters
 
-## Explainable NetworkX investigation graph
+Traditional transaction-level models evaluate each transaction independently. They can identify unusual amounts, frequencies, or patterns, but they may miss coordinated fraud where multiple accounts behave normally in isolation.
 
-The NetworkX graph analysis produced:
+Graph analysis adds relationship context:
 
-| Metric | Result |
-|---|---:|
-| Transaction rows analysed | 200,000 |
-| Fraud-labelled transactions in window | 147 |
-| Account nodes | 294,797 |
-| Directed relationships | 200,000 |
-| Weakly connected components | 94,797 |
-| Largest weakly connected component | 85 accounts |
-| Fraud-linked relationships | 147 |
+```text
+Account A → Transaction → Account B
+Account B → Transaction → Account C
+Account C → Transaction → Account D
+```
 
-The graph was used for retrospective investigation analysis. Fraud-linked accounts and relationships are treated as investigation candidates only. Graph connectivity does not prove that accounts belong to a confirmed fraud ring.
+If several connected accounts participate in suspicious transactions, the connected component may represent a fraud ring even when no single transaction looks obviously fraudulent.
 
-## Leakage-safe graph features
+## PaySim graph suitability
 
-For a transaction at simulation step \(t\), graph features were calculated using only transactions from steps strictly earlier than \(t\). No transaction at the current step was allowed to influence another transaction's features because PaySim does not provide within-step ordering.
+PaySim provides sender and receiver account identifiers, transaction type, amount, event time, and fraud labels. These fields support a transaction graph.
 
-Implemented prior-only features:
+### Available graph entities
 
-- Sender prior out-degree
-- Receiver prior in-degree
-- Sender prior outgoing transaction count
-- Receiver prior incoming transaction count
-- Prior sender-receiver transaction count
-- Prior sender-receiver total amount
+| Entity | Source field | Role |
+|---|---|---|
+| Sender account | `sender_id` | Graph node |
+| Receiver account | `receiver_id` | Graph node |
+| Transaction | `transaction_id` | Edge or event node |
+| Fraud label | `is_fraud` | Node/edge attribute |
+| Transaction type | `type` | Edge attribute |
+| Amount | `amount` | Edge attribute |
+| Event time | `event_time` | Temporal filtering attribute |
 
-## Signal coverage
+## Graph design
 
-Within the first 200,000 chronological transactions:
+### Nodes
 
-| Feature | Rows with nonzero value |
-|---|---:|
-| Sender prior out-degree | 4 |
-| Receiver prior in-degree | 85,591 |
-| Sender prior outgoing transaction count | 4 |
-| Receiver prior incoming transaction count | 85,591 |
-| Prior sender-receiver transaction count | 0 |
-| Prior sender-receiver total amount | 0 |
+- **Account node:** Represents a sender or receiver account.
+- **Transaction node:** Represents an individual transaction event.
 
-The recurring structure in this PaySim window is almost entirely receiver-side activity. Sender recurrence and repeated sender-receiver relationships are effectively absent.
+### Edges
 
-## Fraud-rate comparison
+- `SENT`
+  - From sender account to transaction.
+- `RECEIVED`
+  - From transaction to receiver account.
+- `TRANSFERRED_TO`
+  - From sender account to receiver account, derived from a transaction.
 
-| Graph signal availability | Transactions | Fraud cases | Fraud rate |
-|---|---:|---:|---:|
-| No nonzero prior graph feature | 114,406 | 113 | 0.0988% |
-| At least one nonzero prior graph feature | 85,594 | 34 | 0.0397% |
+### Edge attributes
 
-Transactions with a nonzero historical graph feature had a lower observed fraud rate in this sample. Therefore, the available graph features do not support a positive graph-based fraud-risk score.
+- Transaction amount.
+- Transaction type.
+- Event time.
+- Fraud label.
+- Model fraud probability, where available.
 
-## GNN decision
+## Temporal safety
 
-A PyTorch Geometric graph neural network was not implemented for the initial delivery because the available PaySim account graph is sparse for relationship learning in the evaluated chronological window:
+Graph features must respect the same leakage rule as tabular features:
 
-- Sender account reuse is rare.
-- Repeated sender-receiver pairs are absent.
-- The graph is highly fragmented.
-- The only recurring structure, receiver-side history, is negatively associated with fraud in the observed window.
-- There is no experimental evidence that a GNN would improve on the XGBoost model.
+```text
+For a transaction at time T, use only transactions strictly before T.
+```
 
-Adding a GNN without supportive data or measured improvement would introduce complexity without a defensible benefit.
+The transaction being scored must never contribute to its own graph features.
 
-## Final graph approach
+### Safe graph features
 
-The project retains:
+- Number of prior transactions by sender.
+- Number of prior transactions by receiver.
+- Number of distinct counterparties in the recent window.
+- Recent transaction amount statistics.
+- Number of prior fraud-connected accounts.
+- Number of prior suspicious counterparties.
+- Recent graph degree.
+- Recent shared-counterparty count.
 
-- Explainable NetworkX account-relationship analysis.
-- Historical fraud-linked relationship summaries for retrospective analyst investigation.
-- Leakage-safe graph feature generation and tests.
-- A documented decision not to add graph features or GNN risk to the production XGBoost score.
+### Unsafe graph features
+
+These must not be used for real-time scoring:
+
+- Current transaction fraud label.
+- Current transaction amount used as historical evidence.
+- Current receiver relationship used as a prior relationship.
+- Future transactions.
+- Post-transaction balance fields that reveal the transaction outcome.
+
+## Fraud-ring detection approach
+
+### 1. Build account-transaction graph
+
+Create a graph where accounts are nodes and transactions connect them.
+
+```text
+Sender account
+→ Transaction
+→ Receiver account
+```
+
+### 2. Filter by time window
+
+For each transaction, construct graph features using only earlier transactions.
+
+Example:
+
+```text
+Current transaction time: T
+Allowed historical window: T - 24 hours to T
+Excluded: transaction at T and all transactions after T
+```
+
+### 3. Identify suspicious components
+
+Flag connected components where:
+
+- Multiple accounts participate in fraud-labeled transactions.
+- Accounts share counterparties within a short period.
+- Transaction amounts or frequencies show coordinated behavior.
+- A model-scored transaction connects to prior fraud evidence.
+
+### 4. Generate explanations
+
+For an alert, provide evidence such as:
+
+- Number of connected suspicious accounts.
+- Number of prior fraud transactions in the component.
+- Shared counterparties.
+- Recent transaction velocity.
+- Amount deviation from account history.
+- Relevant graph paths.
+
+Example explanation:
+
+```text
+High risk because the sender is connected to 3 accounts involved in prior
+fraud-labeled transactions within the last 24 hours. The current transaction
+also shows an unusually high amount compared with the sender's historical
+activity.
+```
+
+## Feasibility assessment
+
+| Capability | Feasibility | Reason |
+|---|---|---|
+| Account relationship graph | High | PaySim provides sender and receiver IDs |
+| Transaction graph | High | Each transaction can be represented as an edge or event node |
+| Temporal graph features | High | Event time supports historical-window filtering |
+| Fraud-ring identification | Medium to high | Fraud labels and account connectivity support suspicious-component analysis |
+| Real-time graph scoring | Medium | Requires careful feature precomputation and low-latency lookup |
+| Explainability | High | Graph paths and connected fraud evidence can be shown to analysts |
+| Production scaling | Medium | Requires graph storage, incremental updates, and efficient queries |
+
+## Implementation result
+
+The project implemented graph-based feasibility analysis and explainable relationship checks. It demonstrated that account connectivity can provide additional fraud context beyond individual transaction features.
+
+The implementation supports:
+
+- Account-to-account relationship construction.
+- Historical graph feature logic.
+- Suspicious-connection analysis.
+- Fraud-ring feasibility assessment.
+- Human-readable graph explanations.
 
 ## Limitations
 
-PaySim is synthetic and has limited genuine relationship context. It does not provide device, IP, geolocation, merchant, or verified customer-network information. A production fraud-ring system would require richer entity-resolution, temporal transaction histories, and externally validated investigation labels.
+- PaySim does not include real device, IP, merchant, or location identifiers.
+- Device, IP, and location fields used for enrichment are deterministic simulated fields derived from account identifiers.
+- PaySim fraud labels are synthetic and may not fully represent real-world fraud-ring behavior.
+- Real production graph scoring would require a graph database or optimized in-memory graph service.
+
+## Conclusion
+
+Graph analysis is feasible and valuable for this project. It adds relationship-based context that a transaction-only model cannot capture, supports explainable fraud-ring evidence, and improves the platform’s fraud-investigation narrative.
+
+The recommended production approach is to combine:
+
+```text
+Tabular transaction features
++ Historical behavioral features
++ Temporal graph features
++ XGBoost model score
++ Graph explanation
+```
+
+This produces a more defensible fraud decision than a standalone classifier.

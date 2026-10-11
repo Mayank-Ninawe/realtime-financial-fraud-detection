@@ -1,89 +1,87 @@
-# Deployment Status and Local Demonstration
+# Deployment Status and Verification
+
+## Project deployment summary
+
+The real-time financial fraud detection platform has been deployed and verified across local application execution, Docker-based Kafka streaming, Docker image packaging, and Minikube Kubernetes deployment.
+
+The FastAPI fraud-scoring API was successfully built as a Docker image, loaded into Minikube, deployed through Kubernetes, and verified as healthy.
 
 ## Verified local application
 
-The following components were verified locally:
+The following components were implemented and verified locally:
 
 - Python virtual environment with tested project dependencies.
-- XGBoost fraud scoring model loaded through FastAPI.
-- Streamlit analyst dashboard connected to FastAPI.
-- Kafka-compatible local broker running in Docker.
-- Kafka producer replaying PaySim transaction events.
-- Kafka consumer validating events, calling FastAPI, and persisting scored alerts.
-- MLflow, Feast, and Evidently workflows running locally.
+- PaySim data ingestion and validation workflow.
+- Leakage-safe feature engineering.
+- XGBoost fraud scoring model.
+- FastAPI model-serving API.
+- Streamlit analyst dashboard.
+- Kafka producer and consumer workflow.
+- MLflow experiment tracking.
+- Feast feature-store consistency checks.
+- Evidently drift monitoring and review trigger.
+- Graph-based fraud-ring feasibility analysis.
+
+## Data integrity verification
+
+The PaySim ingestion adapter preserves all source transactions and fraud labels.
+
+```text
+Raw rows: 6,362,620
+Processed rows: 6,362,620
+Raw fraud rows: 8,213
+Processed fraud rows: 8,213
+Zero-amount fraud rows preserved: 16
+```
+
+A preprocessing issue that initially removed 16 zero-amount fraudulent transactions was identified and corrected before modeling.
 
 ## Docker verification
 
-Docker Desktop was installed and verified with:
+Docker Desktop was installed and verified.
 
 ```powershell
 docker run hello-world
 ```
 
-The Kafka broker was successfully run through Docker Compose and verified with a console producer-consumer message exchange.
-
-## FastAPI container packaging
-
-The repository includes:
-
-- `Dockerfile.api`
-- `requirements-api.txt`
-- `docker-compose.yml`
-- `.dockerignore`
-
-The API container design intentionally uses a minimal runtime dependency file and mounts local trained model and evaluation-report artifacts as read-only volumes:
-
-```text
-./models  -> /app/models:ro
-./reports -> /app/reports:ro
-```
-
-This avoids committing large generated model artifacts to Git.
-
-## Current Docker API build blocker
-
-The API Docker image build was attempted using Docker Desktop and the official Python 3.10 slim image.
-
-The build downloaded standard Python wheels successfully but failed while downloading the large Linux XGBoost wheel. Pip rejected the partially downloaded wheel because its SHA-256 checksum did not match the expected package checksum.
-
-This is treated as a Docker-network/download-integrity blocker. The project does not bypass package integrity verification, use unofficial binaries, or claim a successful API image build.
-
-## Local demonstration alternative
-
-The working demonstration remains reproducible through the local Python environment:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-uvicorn api.main:app --app-dir . --port 8000
-streamlit run dashboard/app.py
-```
-
-Kafka is run through Docker Compose:
+Docker Compose was used to run the Kafka broker locally.
 
 ```powershell
 docker compose -f docker-compose.kafka.yml up -d
 ```
 
-## Minikube status
+Kafka producer and consumer workflows were verified by replaying PaySim transaction events, consuming them, calling the FastAPI scoring service, and persisting scored alerts.
 
-Minikube deployment is evaluated separately. Kubernetes manifests are included as deployment configuration only after an image is successfully available to the cluster. The project does not claim a running Kubernetes deployment without verified pod health and endpoint testing.
+## FastAPI container packaging
 
-## Minikube installation status
-
-Minikube installation was initially attempted through Windows Package Manager:
-
-```powershell
-winget install Kubernetes.minikube
-```
-
-The command identified Minikube v1.39.0 but initially failed while downloading the official installer from GitHub due to a network timeout:
+The repository includes the following deployment configuration:
 
 ```text
-InternetReadFile() failed.
-0x80072ee2 : unknown error
+Dockerfile.api
+requirements-api.txt
+docker-compose.yml
+.dockerignore
+k8s/fraud-api-deployment.yaml
+k8s/fraud-api-service.yaml
 ```
 
-The installer was subsequently downloaded successfully through the browser, verified, and installed. Minikube is now available:
+The API image uses a minimal runtime dependency file and includes only the API and source code required for serving.
+
+The Docker image was successfully built:
+
+```powershell
+docker compose build --no-cache fraud-api
+```
+
+Build result:
+
+```text
+✔ Image realtime-financial-fraud-detection-fraud-api Built
+```
+
+## Minikube installation
+
+Minikube v1.39.0 was installed successfully.
 
 ```powershell
 minikube version
@@ -96,39 +94,24 @@ minikube version: v1.39.0
 commit: 7a9f6a841470a207de8cf4bafcccee0969d8ba10
 ```
 
-Minikube installation is complete. Local Kubernetes cluster startup and workload deployment remain pending verification.
-
-## Minikube installation blocker
-
-Minikube installation was attempted through Windows Package Manager:
+Minikube state was configured on the D: drive to avoid filling the system drive:
 
 ```powershell
-winget install Kubernetes.minikube
+$env:MINIKUBE_HOME = "D:\minikube-home"
 ```
 
-The command found Minikube v1.39.0 but failed while downloading the official installer from GitHub:
+## Minikube cluster startup
 
-```text
-InternetReadFile() failed.
-0x80072ee2 : unknown error
-```
-
-This is a network timeout during installer download. It is consistent with the earlier Docker build failure, where pip rejected a partially downloaded XGBoost Linux wheel because its SHA-256 checksum did not match the expected package checksum.
-
-The project therefore records Minikube as blocked by local network/download reliability. Kubernetes configuration and deployment commands are documented, but no Kubernetes deployment is claimed as verified.
-
-## Minikube verification
-
-Minikube v1.39.0 was installed successfully. The local Kubernetes cluster was started using the Docker driver:
+The local Kubernetes cluster was started using the Docker driver:
 
 ```powershell
 minikube start --driver=docker
 ```
 
-Minikube state was configured under `D:\minikube-home` using:
+Successful startup output:
 
-```powershell
-$env:MINIKUBE_HOME = "D:\minikube-home"
+```text
+Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
 ```
 
 Cluster verification:
@@ -139,50 +122,49 @@ kubectl get nodes
 kubectl get pods -A
 ```
 
-Verified output:
+Verified status:
 
 ```text
+minikube
 type: Control Plane
 host: Running
 kubelet: Running
 apiserver: Running
 kubeconfig: Configured
+```
 
+Verified node:
+
+```text
 NAME       STATUS   ROLES           AGE   VERSION
 minikube   Ready    control-plane   10m   v1.37.0
 ```
 
-The Minikube control plane is verified as running and ready. The FastAPI Kubernetes workload is not deployed yet because the API container image build remains blocked by the earlier XGBoost Linux wheel download-integrity failure.
+## Kubernetes API deployment
 
-## Cleanup commands
-
-```powershell
-docker compose down
-docker compose -f docker-compose.kafka.yml down
-```
-
-## Kubernetes API deployment verification
-
-The FastAPI fraud-detection API image was successfully built using Docker Compose:
-
-```powershell
-docker compose build --no-cache fraud-api
-```
-
-The image was loaded into the Minikube cluster:
+The API image was loaded into Minikube:
 
 ```powershell
 minikube image load realtime-financial-fraud-detection-fraud-api:latest
 ```
 
-The Kubernetes Deployment and ClusterIP Service were applied:
+The Kubernetes resources were applied:
 
 ```powershell
 kubectl apply -f k8s/fraud-api-deployment.yaml
 kubectl apply -f k8s/fraud-api-service.yaml
 ```
 
-Verification:
+Created resources:
+
+```text
+deployment.apps/fraud-api created
+service/fraud-api created
+```
+
+## API pod verification
+
+The API pod reached a healthy running state:
 
 ```powershell
 kubectl get pods -l app=fraud-api
@@ -195,24 +177,118 @@ NAME                         READY   STATUS    RESTARTS   AGE
 fraud-api-77cf7f7cdb-shcqx   1/1     Running   0          102s
 ```
 
-The container log confirmed:
+Pod details confirmed:
 
 ```text
+Image: realtime-financial-fraud-detection-fraud-api:latest
+State: Running
+Port: 8000/TCP
+Readiness: http-get http://:8000/health
+Liveness: http-get http://:8000/health
+```
+
+## API health verification
+
+The API logs confirmed successful startup:
+
+```text
+INFO: Started server process[1]
+INFO: Waiting for application startup.
 INFO: Application startup complete.
 INFO: Uvicorn running on http://0.0.0.0:8000
 INFO: ... "GET /health HTTP/1.1" 200 OK
 ```
 
-The API was accessed through Minikube’s local service proxy:
+The service was exposed locally through Minikube:
 
 ```powershell
 minikube service fraud-api --url
 ```
 
-Health-check response:
+Health check:
 
-```json
-{"status":"healthy","service":"fraud-detection-api"}
+```powershell
+curl.exe http://127.0.0.1:63861/health
 ```
 
-The Kubernetes API deployment is verified as running and healthy.
+Response:
+
+```json
+{
+  "status": "healthy",
+  "service": "fraud-detection-api"
+}
+```
+
+## Kubernetes service configuration
+
+The API uses a `ClusterIP` Service for stable in-cluster communication:
+
+```text
+NAME        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+fraud-api   ClusterIP   10.106.207.61   <none>        80/TCP    3s
+```
+
+For local development, Minikube provides a temporary local proxy URL:
+
+```text
+http://127.0.0.1:63861
+```
+
+## Local demonstration commands
+
+### Start Minikube and API
+
+```powershell
+cd D:\Nexvia-Internship\realtime-financial-fraud-detection
+$env:MINIKUBE_HOME = "D:\minikube-home"
+minikube start --driver=docker
+kubectl get pods -l app=fraud-api
+minikube service fraud-api --url
+```
+
+### Run Kafka
+
+```powershell
+docker compose -f docker-compose.kafka.yml up -d
+```
+
+### Run local API and dashboard
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+uvicorn api.main:app --app-dir . --port 8000
+streamlit run dashboard/app.py
+```
+
+## Cleanup commands
+
+```powershell
+kubectl delete -f k8s/fraud-api-service.yaml
+kubectl delete -f k8s/fraud-api-deployment.yaml
+minikube stop
+docker compose -f docker-compose.kafka.yml down
+```
+
+## Known limitations
+
+- Kafka currently runs through Docker Compose rather than inside the Minikube cluster.
+- The Kubernetes Service is `ClusterIP`; local access uses Minikube’s temporary service proxy.
+- PaySim does not provide real device, IP, merchant, or location identifiers; enrichment fields used for graph analysis are simulated deterministically from account identifiers.
+- The project does not include production-grade secrets management, autoscaling, or a cloud Kubernetes cluster.
+
+## Final deployment status
+
+| Component | Status |
+|---|---|
+| Docker Desktop | Verified |
+| Kafka in Docker Compose | Verified |
+| FastAPI Docker image | Built successfully |
+| Minikube installation | Complete |
+| Minikube cluster | Running and Ready |
+| Kubernetes Deployment | Created |
+| Kubernetes Service | Created |
+| API pod | `1/1 Running` |
+| Readiness probe | Passing |
+| `/health` endpoint | HTTP 200 |
+| Kubernetes API deployment | **Verified complete** |
