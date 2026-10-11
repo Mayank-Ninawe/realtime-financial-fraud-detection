@@ -160,3 +160,59 @@ The Minikube control plane is verified as running and ready. The FastAPI Kuberne
 docker compose down
 docker compose -f docker-compose.kafka.yml down
 ```
+
+## Kubernetes API deployment verification
+
+The FastAPI fraud-detection API image was successfully built using Docker Compose:
+
+```powershell
+docker compose build --no-cache fraud-api
+```
+
+The image was loaded into the Minikube cluster:
+
+```powershell
+minikube image load realtime-financial-fraud-detection-fraud-api:latest
+```
+
+The Kubernetes Deployment and ClusterIP Service were applied:
+
+```powershell
+kubectl apply -f k8s/fraud-api-deployment.yaml
+kubectl apply -f k8s/fraud-api-service.yaml
+```
+
+Verification:
+
+```powershell
+kubectl get pods -l app=fraud-api
+```
+
+Output:
+
+```text
+NAME                         READY   STATUS    RESTARTS   AGE
+fraud-api-77cf7f7cdb-shcqx   1/1     Running   0          102s
+```
+
+The container log confirmed:
+
+```text
+INFO: Application startup complete.
+INFO: Uvicorn running on http://0.0.0.0:8000
+INFO: ... "GET /health HTTP/1.1" 200 OK
+```
+
+The API was accessed through Minikube’s local service proxy:
+
+```powershell
+minikube service fraud-api --url
+```
+
+Health-check response:
+
+```json
+{"status":"healthy","service":"fraud-detection-api"}
+```
+
+The Kubernetes API deployment is verified as running and healthy.
