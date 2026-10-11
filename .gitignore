@@ -259,3 +259,5 @@ data/processed/consumer_errors.json
 data/processed/cases.json
 confluent-kafka
 artifacts/graph/
+feature_repo/data/*.parquet
+feature_repo/data/*.db

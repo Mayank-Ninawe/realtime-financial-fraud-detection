@@ -14,4 +14,5 @@ uvicorn
 streamlit
 httpx
 requests
+feast==0.66.0
 networkx
