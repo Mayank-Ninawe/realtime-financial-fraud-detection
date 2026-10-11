@@ -7,8 +7,12 @@ __pycache__
 
 data/
 artifacts/
-reports/
-models/
+reports/*
+!reports/
+!reports/evaluation_results.json
+models/*
+!models/
+!models/*.joblib
 mlruns/
 mlartifacts/
 monitoring_reports/

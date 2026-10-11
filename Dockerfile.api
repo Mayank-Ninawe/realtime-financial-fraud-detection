@@ -20,6 +20,8 @@ RUN python -m pip install \
 
 COPY api ./api
 COPY src ./src
+COPY models/*.joblib ./models/
+COPY reports/evaluation_results.json ./reports/evaluation_results.json
 
 EXPOSE 8000
 
