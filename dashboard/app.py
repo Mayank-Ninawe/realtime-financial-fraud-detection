@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -59,7 +59,7 @@ def create_case_from_prediction(
     source: str,
 ) -> dict:
     """Create a new analyst case record from a model prediction."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
     return {
         "transaction_id": prediction["transaction_id"],
@@ -201,7 +201,7 @@ with left_column:
             )
         except requests.exceptions.HTTPError as error:
             st.error(f"API returned an error: {error.response.text}")
-        except Exception as error:
+        except (KeyError, OSError, TypeError, ValueError) as error:
             st.error(f"Unexpected error: {error}")
 
 with right_column:
@@ -321,6 +321,8 @@ else:
     if st.button("Save case update"):
         cases[selected_index]["case_status"] = new_status
         cases[selected_index]["analyst_feedback"] = feedback
-        cases[selected_index]["updated_at"] = datetime.utcnow().isoformat()
+        cases[selected_index]["updated_at"] = datetime.now(
+            timezone.utc
+        ).isoformat()
         save_cases(cases)
         st.success("Case updated successfully.")

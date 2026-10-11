@@ -19,7 +19,11 @@ from sklearn.metrics import (
 )
 
 from fraud_detection.config import MODEL_DIR, REPORT_DIR
-from fraud_detection.data import create_temporal_splits, load_raw_data, validate_raw_data
+from fraud_detection.data import (
+    create_temporal_splits,
+    load_raw_data,
+    validate_raw_data,
+)
 from fraud_detection.features import get_feature_matrix, get_target
 
 
@@ -118,7 +122,7 @@ def run_evaluation() -> None:
         realtime_threshold,
     )
 
-    leakage_metrics, leakage_scores, leakage_matrix = evaluate_model(
+    leakage_metrics, _, _ = evaluate_model(
         MODEL_DIR / "leakage_suspect_xgboost.joblib",
         "leakage_suspect_xgboost",
         "leakage_suspect",

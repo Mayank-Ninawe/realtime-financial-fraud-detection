@@ -1,7 +1,8 @@
 """Basic environment and dependency checks."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 def test_pandas_import():
     assert pd.__version__

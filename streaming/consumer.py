@@ -53,7 +53,7 @@ def validate_event(event: dict) -> dict:
 
     transaction = event.get("transaction")
     if not isinstance(transaction, dict):
-        raise ValueError("Event must contain a transaction object.")
+        raise TypeError("Event must contain a transaction object.")
 
     required_fields = {
         "transaction_id",
@@ -145,7 +145,13 @@ def run_consumer() -> None:
                     f"risk={prediction['risk_score']}%, "
                     f"alert={prediction['is_alert']}"
                 )
-            except Exception as error:
+            except (
+                KeyError,
+                OSError,
+                requests.exceptions.RequestException,
+                TypeError,
+                ValueError,
+            ) as error:
                 error_record = {
                     "received_at": datetime.now(timezone.utc).isoformat(),
                     "error": str(error),

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 
 import networkx as nx
 import pandas as pd
@@ -195,17 +194,17 @@ def create_graph_summary(
         "analysis_window": {
             "max_step": max_step,
             "max_rows": max_rows,
-            "actual_transaction_rows": int(len(dataframe)),
+            "actual_transaction_rows": len(dataframe),
             "fraud_transaction_rows": int(dataframe["isFraud"].sum()),
         },
         "graph_metrics": {
             "node_count": int(graph.number_of_nodes()),
             "edge_count": int(graph.number_of_edges()),
-            "weakly_connected_component_count": int(len(weak_components)),
+            "weakly_connected_component_count": len(weak_components),
             "largest_weakly_connected_component_size": (
                 int(weak_component_sizes[0]) if weak_component_sizes else 0
             ),
-            "fraud_linked_relationship_count": int(len(fraud_relationships)),
+            "fraud_linked_relationship_count": len(fraud_relationships),
         },
         "top_fraud_linked_accounts": top_fraud_linked_accounts,
         "top_fraud_relationships": top_fraud_relationships,

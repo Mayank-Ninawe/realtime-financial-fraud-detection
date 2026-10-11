@@ -165,9 +165,9 @@ def train_models() -> None:
     joblib.dump(realtime_model, MODEL_DIR / "realtime_safe_xgboost.joblib")
 
     summary = {
-        "train_rows": int(len(train_df)),
-        "validation_rows": int(len(validation_df)),
-        "test_rows": int(len(test_df)),
+        "train_rows": len(train_df),
+        "validation_rows": len(validation_df),
+        "test_rows": len(test_df),
         "leakage_suspect_validation_average_precision": float(
             leakage_validation_ap
         ),

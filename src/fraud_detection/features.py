@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from fraud_detection.config import (
-    CATEGORICAL_FEATURES,
     LEAKAGE_SUSPECT_FEATURES,
     REALTIME_SAFE_FEATURES,
     TARGET_COLUMN,
