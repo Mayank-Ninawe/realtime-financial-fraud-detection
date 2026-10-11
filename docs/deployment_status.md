@@ -68,6 +68,36 @@ docker compose -f docker-compose.kafka.yml up -d
 
 Minikube deployment is evaluated separately. Kubernetes manifests are included as deployment configuration only after an image is successfully available to the cluster. The project does not claim a running Kubernetes deployment without verified pod health and endpoint testing.
 
+## Minikube installation status
+
+Minikube installation was initially attempted through Windows Package Manager:
+
+```powershell
+winget install Kubernetes.minikube
+```
+
+The command identified Minikube v1.39.0 but initially failed while downloading the official installer from GitHub due to a network timeout:
+
+```text
+InternetReadFile() failed.
+0x80072ee2 : unknown error
+```
+
+The installer was subsequently downloaded successfully through the browser, verified, and installed. Minikube is now available:
+
+```powershell
+minikube version
+```
+
+Output:
+
+```text
+minikube version: v1.39.0
+commit: 7a9f6a841470a207de8cf4bafcccee0969d8ba10
+```
+
+Minikube installation is complete. Local Kubernetes cluster startup and workload deployment remain pending verification.
+
 ## Minikube installation blocker
 
 Minikube installation was attempted through Windows Package Manager:
@@ -86,6 +116,43 @@ InternetReadFile() failed.
 This is a network timeout during installer download. It is consistent with the earlier Docker build failure, where pip rejected a partially downloaded XGBoost Linux wheel because its SHA-256 checksum did not match the expected package checksum.
 
 The project therefore records Minikube as blocked by local network/download reliability. Kubernetes configuration and deployment commands are documented, but no Kubernetes deployment is claimed as verified.
+
+## Minikube verification
+
+Minikube v1.39.0 was installed successfully. The local Kubernetes cluster was started using the Docker driver:
+
+```powershell
+minikube start --driver=docker
+```
+
+Minikube state was configured under `D:\minikube-home` using:
+
+```powershell
+$env:MINIKUBE_HOME = "D:\minikube-home"
+```
+
+Cluster verification:
+
+```powershell
+minikube status
+kubectl get nodes
+kubectl get pods -A
+```
+
+Verified output:
+
+```text
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+
+NAME       STATUS   ROLES           AGE   VERSION
+minikube   Ready    control-plane   10m   v1.37.0
+```
+
+The Minikube control plane is verified as running and ready. The FastAPI Kubernetes workload is not deployed yet because the API container image build remains blocked by the earlier XGBoost Linux wheel download-integrity failure.
 
 ## Cleanup commands
 

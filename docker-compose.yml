@@ -1,0 +1,14 @@
+services:
+  fraud-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: fraud-api
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONPATH: /app/src
+    volumes:
+      - ./models:/app/models:ro
+      - ./reports:/app/reports:ro
+    restart: unless-stopped
