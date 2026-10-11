@@ -254,4 +254,9 @@ monitoring_reports/
 .DS_Store
 Thumbs.db
 mlflow.db
+data/processed/streamed_transactions.json
+data/processed/consumer_errors.json
 data/processed/cases.json
+confluent-kafka
+data/processed/streamed_transactions.json
+data/processed/consumer_errors.json

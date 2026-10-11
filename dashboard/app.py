@@ -1,5 +1,7 @@
 """Streamlit analyst dashboard for fraud alerts and case management."""
 
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +12,7 @@ import streamlit as st
 
 API_URL = "http://127.0.0.1:8000"
 CASES_PATH = Path("data/processed/cases.json")
+STREAMED_TRANSACTIONS_PATH = Path("data/processed/streamed_transactions.json")
 
 st.set_page_config(
     page_title="Fraud Detection Analyst Dashboard",
@@ -19,26 +22,84 @@ st.set_page_config(
 
 st.title("🛡️ Real-Time Fraud Detection Dashboard")
 st.caption(
-    "Scores transactions through the FastAPI service and manages analyst cases."
+    "Scores transactions through FastAPI, tracks analyst cases, "
+    "and displays Kafka-streamed alerts."
 )
 
 
+def load_json_records(path: Path) -> list[dict]:
+    """Load a JSON list from disk or return an empty list."""
+    if not path.exists():
+        return []
+
+    with open(path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_json_records(path: Path, records: list[dict]) -> None:
+    """Persist records to a local JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as file:
+        json.dump(records, file, indent=2)
+
+
 def load_cases() -> list[dict]:
-    """Load persisted analyst cases from local JSON storage."""
-    if CASES_PATH.exists():
-        with open(CASES_PATH, "r", encoding="utf-8") as file:
-            return json.load(file)
-    return []
+    """Load persisted analyst cases."""
+    return load_json_records(CASES_PATH)
 
 
 def save_cases(cases: list[dict]) -> None:
-    """Persist analyst cases locally."""
-    CASES_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CASES_PATH, "w", encoding="utf-8") as file:
-        json.dump(cases, file, indent=2)
+    """Persist analyst cases."""
+    save_json_records(CASES_PATH, cases)
+
+
+def create_case_from_prediction(
+    prediction: dict,
+    transaction: dict,
+    source: str,
+) -> dict:
+    """Create a new analyst case record from a model prediction."""
+    now = datetime.utcnow().isoformat()
+
+    return {
+        "transaction_id": prediction["transaction_id"],
+        "fraud_probability": prediction["fraud_probability"],
+        "risk_score": prediction["risk_score"],
+        "is_alert": prediction["is_alert"],
+        "recommended_action": prediction["recommended_action"],
+        "transaction_details": transaction,
+        "source": source,
+        "case_status": "New",
+        "analyst_feedback": "",
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def add_case_if_missing(cases: list[dict], new_case: dict) -> bool:
+    """Add a case only when its transaction ID has not been stored already."""
+    existing_ids = {case["transaction_id"] for case in cases}
+
+    if new_case["transaction_id"] in existing_ids:
+        return False
+
+    cases.append(new_case)
+    return True
+
+
+def get_streamed_alerts() -> list[dict]:
+    """Return alert-generating scored events from Kafka consumer output."""
+    streamed_records = load_json_records(STREAMED_TRANSACTIONS_PATH)
+
+    return [
+        record
+        for record in streamed_records
+        if record.get("prediction", {}).get("is_alert", False)
+    ]
 
 
 cases = load_cases()
+streamed_alerts = get_streamed_alerts()
 
 with st.sidebar:
     st.header("Score a transaction")
@@ -52,25 +113,43 @@ with st.sidebar:
     sender_id = st.text_input("Sender account", value="C1000001")
     receiver_id = st.text_input("Receiver account", value="C2000001")
     sender_old_balance = st.number_input(
-        "Sender balance before", min_value=0.0, value=200000.0
+        "Sender balance before",
+        min_value=0.0,
+        value=200000.0,
     )
     sender_new_balance = st.number_input(
-        "Sender balance after", min_value=0.0, value=50000.0
+        "Sender balance after",
+        min_value=0.0,
+        value=50000.0,
     )
     receiver_old_balance = st.number_input(
-        "Receiver balance before", min_value=0.0, value=0.0
+        "Receiver balance before",
+        min_value=0.0,
+        value=0.0,
     )
     receiver_new_balance = st.number_input(
-        "Receiver balance after", min_value=0.0, value=150000.0
+        "Receiver balance after",
+        min_value=0.0,
+        value=150000.0,
     )
     step = st.number_input("Simulation step", min_value=1, value=100)
 
     score_button = st.button("Score transaction", type="primary")
 
-col1, col2 = st.columns([2, 1])
+col1, col2, col3 = st.columns(3)
+col1.metric("Stored analyst cases", len(cases))
+col2.metric("Kafka-streamed alerts", len(streamed_alerts))
+col3.metric(
+    "Open cases",
+    sum(case["case_status"] != "Resolved" for case in cases),
+)
 
-with col1:
-    st.subheader("Transaction scoring")
+st.divider()
+
+left_column, right_column = st.columns([2, 1])
+
+with left_column:
+    st.subheader("Manual transaction scoring")
 
     if score_button:
         payload = {
@@ -94,14 +173,8 @@ with col1:
             st.success("Prediction received from FastAPI service.")
 
             metric_col1, metric_col2, metric_col3 = st.columns(3)
-            metric_col1.metric(
-                "Risk score",
-                f"{prediction['risk_score']:.2f}%",
-            )
-            metric_col2.metric(
-                "Alert",
-                "Yes" if prediction["is_alert"] else "No",
-            )
+            metric_col1.metric("Risk score", f"{prediction['risk_score']:.2f}%")
+            metric_col2.metric("Alert", "Yes" if prediction["is_alert"] else "No")
             metric_col3.metric(
                 "Recommended action",
                 prediction["recommended_action"],
@@ -109,34 +182,29 @@ with col1:
 
             st.json(prediction)
 
-            cases.append(
-                {
-                    "transaction_id": prediction["transaction_id"],
-                    "fraud_probability": prediction["fraud_probability"],
-                    "risk_score": prediction["risk_score"],
-                    "is_alert": prediction["is_alert"],
-                    "recommended_action": prediction["recommended_action"],
-                    "transaction_details": payload,
-                    "case_status": "New",
-                    "analyst_feedback": "",
-                    "created_at": datetime.utcnow().isoformat(),
-                    "updated_at": datetime.utcnow().isoformat(),
-                }
+            new_case = create_case_from_prediction(
+                prediction=prediction,
+                transaction=payload,
+                source="manual_api",
             )
-            save_cases(cases)
-            st.info("Case created with status: New")
+
+            if add_case_if_missing(cases, new_case):
+                save_cases(cases)
+                st.info("Case created with status: New")
+            else:
+                st.info("A case already exists for this transaction ID.")
 
         except requests.exceptions.ConnectionError:
             st.error(
                 "FastAPI service is not reachable. Start it with: "
-                "`uvicorn api.main:app --reload --port 8000`"
+                "`uvicorn api.main:app --app-dir . --port 8000`"
             )
         except requests.exceptions.HTTPError as error:
             st.error(f"API returned an error: {error.response.text}")
         except Exception as error:
             st.error(f"Unexpected error: {error}")
 
-with col2:
+with right_column:
     st.subheader("Service status")
 
     try:
@@ -146,14 +214,72 @@ with col2:
     except requests.exceptions.RequestException:
         st.error("FastAPI service is offline.")
 
+st.divider()
+
+st.subheader("Kafka-streamed fraud alerts")
+
+if not streamed_alerts:
+    st.info(
+        "No streamed alerts found yet. Start the Kafka consumer and replay "
+        "transactions with the producer."
+    )
+else:
+    streamed_alert_rows = []
+
+    for record in streamed_alerts:
+        transaction = record["transaction"]
+        prediction = record["prediction"]
+
+        streamed_alert_rows.append(
+            {
+                "transaction_id": prediction["transaction_id"],
+                "event_timestamp": record.get("event_timestamp"),
+                "processed_at": record.get("processed_at"),
+                "type": transaction["type"],
+                "amount": transaction["amount"],
+                "risk_score": prediction["risk_score"],
+                "is_alert": prediction["is_alert"],
+                "recommended_action": prediction["recommended_action"],
+            }
+        )
+
+    streamed_alerts_df = pd.DataFrame(streamed_alert_rows).sort_values(
+        "processed_at",
+        ascending=False,
+    )
+
+    st.dataframe(streamed_alerts_df, use_container_width=True)
+
+    if st.button("Create cases for streamed alerts"):
+        created_count = 0
+
+        for record in streamed_alerts:
+            new_case = create_case_from_prediction(
+                prediction=record["prediction"],
+                transaction=record["transaction"],
+                source="kafka_stream",
+            )
+
+            if add_case_if_missing(cases, new_case):
+                created_count += 1
+
+        if created_count > 0:
+            save_cases(cases)
+            st.success(f"Created {created_count} case(s) from streamed alerts.")
+        else:
+            st.info("Cases already exist for all streamed alerts.")
+
+st.divider()
+
 st.subheader("Analyst cases")
 
 if not cases:
-    st.info("No cases yet. Score a transaction to create one.")
+    st.info("No cases yet. Score a transaction or create cases from streamed alerts.")
 else:
     cases_df = pd.DataFrame(cases)
     display_columns = [
         "transaction_id",
+        "source",
         "risk_score",
         "is_alert",
         "recommended_action",
@@ -176,16 +302,20 @@ else:
     )
     selected_case = cases[selected_index]
 
+    case_statuses = ["New", "Under Review", "Resolved"]
+    selected_status = selected_case.get("case_status", "New")
+
+    if selected_status not in case_statuses:
+        selected_status = "New"
+
     new_status = st.selectbox(
         "Case status",
-        ["New", "Under Review", "Resolved"],
-        index=["New", "Under Review", "Resolved"].index(
-            selected_case["case_status"]
-        ),
+        case_statuses,
+        index=case_statuses.index(selected_status),
     )
     feedback = st.text_area(
         "Analyst feedback",
-        value=selected_case["analyst_feedback"],
+        value=selected_case.get("analyst_feedback", ""),
     )
 
     if st.button("Save case update"):
