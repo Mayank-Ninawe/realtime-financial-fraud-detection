@@ -258,5 +258,4 @@ data/processed/streamed_transactions.json
 data/processed/consumer_errors.json
 data/processed/cases.json
 confluent-kafka
-data/processed/streamed_transactions.json
-data/processed/consumer_errors.json
+artifacts/graph/
