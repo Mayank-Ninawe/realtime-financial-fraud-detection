@@ -16,3 +16,4 @@ httpx
 requests
 feast==0.66.0
 networkx
+evidently==0.7.23

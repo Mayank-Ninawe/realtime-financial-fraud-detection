@@ -261,3 +261,4 @@ confluent-kafka
 artifacts/graph/
 feature_repo/data/*.parquet
 feature_repo/data/*.db
+monitoring_reports/
