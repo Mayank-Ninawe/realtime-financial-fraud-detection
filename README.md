@@ -122,7 +122,10 @@ The ingestion adapter preserves all source rows and fraud labels. A preprocessin
 ```text
 realtime-financial-fraud-detection/
 ├── api/
-│   └── main.py
+│   ├── main.py
+│   ├── predictor.py
+│   ├── schemas.py
+│   └── __init__.py
 ├── dashboard/
 │   └── app.py
 ├── data/
@@ -135,6 +138,11 @@ realtime-financial-fraud-detection/
 │   └── deployment_status.md
 ├── feature_repo/
 │   └── ...
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── src/
+│   └── public/
 ├── k8s/
 │   ├── fraud-api-deployment.yaml
 │   └── fraud-api-service.yaml
@@ -154,10 +162,41 @@ realtime-financial-fraud-detection/
 ├── docker-compose.kafka.yml
 ├── Dockerfile.api
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── .venv/
 ```
 
 Large generated artifacts such as raw data, processed Parquet files, trained models, MLflow runs, and monitoring reports are excluded from Git through `.gitignore`.
+
+## Frontend dashboard
+
+A React + TypeScript + Vite dashboard lives in the `frontend/` directory and serves as the primary demo interface for the fraud-monitoring experience. It is designed to work with the existing FastAPI service and exposes the real `/health` and `/predict` behavior without replacing the backend or ML pipeline.
+
+### Run frontend locally
+
+```bash
+cd frontend
+npm install
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+### Frontend stack
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Recharts
+- shadcn/ui-inspired component primitives
+
+### Backend integration
+
+The frontend calls the existing Python backend endpoints:
+
+- `GET /health` for service status
+- `POST /predict` with a transaction payload to score a transaction
+
+The legacy Streamlit dashboard remains available as a fallback and is intentionally preserved.
 
 ## Core workflow
 
@@ -288,18 +327,38 @@ Expected response:
 
 ## Running the dashboard
 
-In a second terminal:
+From the repository root (`D:\Nexvia-Internship\realtime-financial-fraud-detection`),
+start the API first in one PowerShell terminal:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-streamlit run dashboard/app.py
+$env:PYTHONPATH = "$PWD\src"
+uvicorn api.main:app --app-dir . --host 127.0.0.1 --port 8000
+```
+
+In a second PowerShell terminal, also from the repository root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+streamlit run dashboard\app.py
 ```
 
 Open the URL shown by Streamlit, usually:
 
 ```text
-http://localhost:8501
+http://127.0.0.1:8501
 ```
+
+The dashboard checks `/health` and then performs a model-backed readiness
+prediction. “API reachable” is therefore kept distinct from “model loaded and
+prediction ready.” The Overview page labels PaySim `isFraud` counts as
+historical data, while the Fraud alerts page only displays locally persisted
+Kafka consumer records. Case status updates are local JSON records in
+`data\processed\cases.json`; they are not an external case-management system.
+
+The dashboard can be explored without Kafka. If Kafka is not running, it
+shows “Streaming unavailable” and keeps historical analysis and verified API
+scoring available.
 
 ## Running Kafka streaming
 

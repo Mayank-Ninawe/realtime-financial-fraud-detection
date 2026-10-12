@@ -219,6 +219,18 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Frontend (React/Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.tsbuildinfo
+frontend/.env
+frontend/.env.*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
 # Virtual environments
 .venv/
 *.py[cod]

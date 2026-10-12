@@ -1,20 +1,34 @@
+# Core data science
 pandas
 numpy
 matplotlib
 seaborn
-jupyter
-ipykernel
-pytest
-xgboost
 scikit-learn
+xgboost
 joblib
-mlflow
+networkx
+
+# API and serving
 fastapi
 uvicorn
-streamlit
 httpx
-confluent-kafka
 requests
-feast==0.66.0
-networkx
+
+# ML / monitoring
+mlflow
 evidently==0.7.23
+feast==0.66.0
+
+# Streaming and analytics
+confluent-kafka
+
+# Dashboard and notebooks
+streamlit
+jupyter
+ipykernel
+
+# Testing
+pytest
+
+# Frontend support
+# Optional: keep these in sync with the frontend package if the app is expected to run from the Python environment.
