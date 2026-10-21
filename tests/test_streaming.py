@@ -68,3 +68,18 @@ def test_json_record_persistence(tmp_path):
 
     with open(output_path, "r", encoding="utf-8") as file:
         assert json.load(file) == [record]
+
+
+def test_jsonl_record_persistence(tmp_path):
+    output_path = tmp_path / "records.jsonl"
+    record1 = {"transaction_id": "txn_test_001", "risk_score": 99.5}
+    record2 = {"transaction_id": "txn_test_002", "risk_score": 12.3}
+
+    append_json_record(output_path, record1)
+    append_json_record(output_path, record2)
+
+    assert output_path.exists()
+    loaded = load_json_records(output_path)
+    assert len(loaded) == 2
+    assert loaded[0] == record1
+    assert loaded[1] == record2

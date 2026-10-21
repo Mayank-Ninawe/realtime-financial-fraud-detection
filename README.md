@@ -255,19 +255,30 @@ Example health response:
 }
 ```
 
-### 5. Kafka streaming
+### 5. Kafka streaming & append-only persistence
 
-The producer replays PaySim transactions to a Kafka topic. The consumer reads each event, calls the FastAPI scoring endpoint, and persists the resulting alert or scored transaction.
+The producer replays PaySim transactions to the Kafka topic `fraud-transactions`. The consumer reads events, validates schemas, scores each transaction via FastAPI `/predict`, and persists scored records and alerts using high-performance append-only JSONL (`data/processed/streamed_transactions.jsonl`).
 
 ```text
-Kafka producer → Kafka topic → Kafka consumer → FastAPI → Alert store
+Kafka producer → Kafka topic → Kafka consumer → FastAPI → Append-only JSONL Store
 ```
 
-### 6. Analyst dashboard
+Unlike full JSON list dumps which incur $O(N^2)$ write penalties, append-only JSONL ensures $O(1)$ constant-time event writes under high-throughput streaming.
 
-The Streamlit dashboard connects to the FastAPI service and allows analysts to inspect scored transactions, fraud probabilities, and alerts.
+### 6. Feast feature store architecture & role
 
-### 7. Monitoring and governance
+The feature store is configured in `feature_repo/` with an SQLite online store (`feature_repo/data/online_store.db`), registry (`registry.db`), and Parquet offline sources (`transaction_features.parquet`):
+
+- **Role & Purpose:** Feast serves as the architectural standard for **offline-to-online feature definition parity** and historical feature snapshot validation (`test_feast_snapshot.py`).
+- **Runtime Inference Decoupling:** In high-velocity transaction fraud scoring (where sub-10ms latency is mandatory), the FastAPI scoring service computes derived pre-transaction features in-memory directly from the transaction envelope. Feast guarantees that the exact same feature names, types, and derivation logic are standardized and reproducible across offline training pipelines and online store registries.
+
+### 7. Analyst dashboards & command center
+
+The platform provides two complementary user interfaces:
+1. **React Command Center (`frontend/`):** A modern React 18 + TypeScript + Tailwind CSS SPA connected to real FastAPI REST endpoints (`/alerts`, `/cases`, `/graph/summary`, `/metrics/overview`, `/metrics/performance`). Analysts can review live fraud queues, resolve or escalate cases, and explore top fraud ring clusters.
+2. **Streamlit Console (`dashboard/app.py`):** A Python-native operational dashboard providing historical PaySim label inspection, manual transaction simulation, and Evidently drift review.
+
+### 8. Monitoring and governance
 
 MLflow records experiment metadata and model artifacts. Evidently monitors input-data drift and generates reports that can trigger model review.
 
@@ -530,6 +541,7 @@ Feast is used to maintain consistency between:
 
 ## Project documentation
 
+- [`docs/system_architecture_and_refactoring.md`](docs/system_architecture_and_refactoring.md) — System architecture enhancements, streaming optimizations, and integration verification.
 - [`docs/project_plan.md`](docs/project_plan.md) — Full phased implementation plan and completion status.
 - [`docs/graph_feasibility.md`](docs/graph_feasibility.md) — Graph-based fraud-ring analysis and feasibility assessment.
 - [`docs/deployment_status.md`](docs/deployment_status.md) — Docker, Kafka, Minikube, and Kubernetes deployment verification.

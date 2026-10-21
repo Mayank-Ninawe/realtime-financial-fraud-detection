@@ -28,3 +28,10 @@ class PredictionResponse(BaseModel):
     model_name: str
     threshold: float
     recommended_action: str
+
+
+class CaseUpdate(BaseModel):
+    """Payload to update an analyst case review status."""
+
+    case_status: str
+    analyst_feedback: str | None = None

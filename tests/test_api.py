@@ -56,3 +56,38 @@ def test_predict_invalid_amount():
     response = client.post("/predict", json=payload)
 
     assert response.status_code == 422
+
+
+def test_get_cases_and_alerts():
+    response = client.get("/cases")
+    assert response.status_code == 200
+    data = response.json()
+    assert "cases" in data
+    assert "open_count" in data
+    assert "total_count" in data
+
+
+def test_get_graph_summary():
+    response = client.get("/graph/summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert "graph_metrics" in data
+    assert "top_fraud_linked_accounts" in data
+
+
+def test_get_metrics_overview():
+    response = client.get("/metrics/overview")
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_transactions" in data
+    assert "fraud_rate" in data
+    assert "trend_data" in data
+
+
+def test_get_metrics_performance():
+    response = client.get("/metrics/performance")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["model_name"] == "realtime_safe_xgboost"
+    assert "confusion_matrix" in data
+    assert "average_precision" in data

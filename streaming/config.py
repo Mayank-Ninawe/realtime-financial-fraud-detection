@@ -21,12 +21,12 @@ STREAMED_TRANSACTIONS_PATH = (
     PROJECT_ROOT
     / "data"
     / "processed"
-    / "streamed_transactions.json"
+    / "streamed_transactions.jsonl"
 )
 
 CONSUMER_ERRORS_PATH = (
     PROJECT_ROOT
     / "data"
     / "processed"
-    / "consumer_errors.json"
+    / "consumer_errors.jsonl"
 )

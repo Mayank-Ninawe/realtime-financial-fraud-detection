@@ -5,14 +5,18 @@ import { Activity, CheckCircle2, Loader2, ServerCrash } from 'lucide-react';
 
 export function HealthPage() {
   const [health, setHealth] = useState<{ status: string; service: string } | null>(null);
+  const [latency, setLatency] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
+      const start = performance.now();
       try {
         const response = await getHealth();
+        const duration = Math.round(performance.now() - start);
         setHealth(response);
+        setLatency(duration);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch health');
       } finally {
@@ -32,10 +36,10 @@ export function HealthPage() {
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Service status', health?.status ?? '—', 'Healthy backend'],
-          ['Service name', health?.service ?? '—', 'Fraud detection API'],
-          ['Latency', '184 ms', 'P95 observed'],
-          ['Inference', '98.2%', 'Model confidence'],
+          ['Service status', health?.status ?? '—', 'FastAPI core'],
+          ['Service name', health?.service ?? '—', 'Production service ID'],
+          ['Measured Latency', latency ? `${latency} ms` : '—', 'Direct ping roundtrip'],
+          ['Model Pipeline', 'Loaded (XGBoost)', 'Ready for inference'],
         ].map(([label, value, hint]) => (
           <Card key={label}>
             <CardHeader>

@@ -28,22 +28,49 @@ def stop_consumer(_signal_number, _frame) -> None:
 
 
 def load_json_records(path) -> list[dict]:
-    """Load JSON list data or return an empty list when absent."""
-    if not path.exists():
-        return []
+    """Load records from JSONL (line-delimited) or legacy JSON list file."""
+    from pathlib import Path
+    p = Path(path)
+    if not p.exists():
+        # Check if alternative extension exists
+        alt = p.with_suffix(".json") if p.suffix == ".jsonl" else p.with_suffix(".jsonl")
+        if alt.exists():
+            p = alt
+        else:
+            return []
 
-    with open(path, "r", encoding="utf-8") as file:
-        return json.load(file)
+    with open(p, "r", encoding="utf-8") as file:
+        content = file.read().strip()
+        if not content:
+            return []
+        if content.startswith("["):
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                pass
+        records = []
+        for line in content.splitlines():
+            line = line.strip()
+            if line:
+                records.append(json.loads(line))
+        return records
 
 
 def append_json_record(path, record: dict) -> None:
-    """Append one record to a local JSON list."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    records = load_json_records(path)
-    records.append(record)
+    """Append one record to a local append-only JSONL or JSON file with O(1) write."""
+    from pathlib import Path
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(path, "w", encoding="utf-8") as file:
-        json.dump(records, file, indent=2)
+    if p.suffix == ".jsonl":
+        with open(p, "a", encoding="utf-8") as file:
+            file.write(json.dumps(record) + "\n")
+    else:
+        # Fallback for explicit legacy .json extension
+        records = load_json_records(p)
+        records.append(record)
+        with open(p, "w", encoding="utf-8") as file:
+            json.dump(records, file, indent=2)
 
 
 def validate_event(event: dict) -> dict:
