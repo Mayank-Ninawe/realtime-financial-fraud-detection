@@ -89,3 +89,42 @@ tests/test_streaming.py::test_jsonl_record_persistence PASSED
   - Alerts queue loaded from `/cases`; interactive case resolution dynamically mutated state and persisted audit notes.
   - Roundtrip ping latency measured at **39 ms**.
   - Interactive risk scoring test evaluated sample transaction and rendered model verdict in real time.
+
+---
+
+## 4. Decision Threshold Analysis & Multi-Tier Operational Policy
+
+### 4.1 Threshold Selection Mechanics
+In `reports/evaluation_results.json`, the decision threshold is calibrated to:
+$$\tau = 9.248 \times 10^{-5} \quad (\approx 0.009\%)$$
+
+- **Reason for Calibration:** The PaySim dataset is severely imbalanced ($\approx 0.129\%$ positive fraud prevalence). During model validation, the evaluation script minimized False Negatives to achieve $100\%$ Recall ($\text{FN} = 0$, $\text{TP} = 846$) on the holdout test set.
+- **Precision/Recall Trade-off:** At this ultra-sensitive threshold, the model catches all fraud events but incurs $1,012$ False Positives out of $66,990$ legitimate transactions ($\text{Precision} \approx 45.5\%$).
+
+### 4.2 Production Multi-Tier Routing Recommendation
+In real-world financial fraud architectures, a binary pass/fail cutoff at $\tau = 0.009\%$ creates severe alert fatigue for risk teams. Production systems deploy **multi-tier triage buckets**:
+
+```text
+               ┌────────────────────────────────────────────────────────┐
+               │              Predicted Fraud Probability               │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┼────────────────────────────────┐
+         │                                 │                                │
+         ▼                                 ▼                                ▼
+┌─────────────────┐               ┌─────────────────┐              ┌─────────────────┐
+│ Probability ≥ 90%│              │ Threshold ≤ p < 90│             │  p < Threshold  │
+└────────┬────────┘               └────────┬────────┘              └────────┬────────┘
+         │                                 │                                │
+         ▼                                 ▼                                ▼
+┌─────────────────┐               ┌─────────────────┐              ┌─────────────────┐
+│ Immediate Block │               │  Analyst Review │              │   Auto-Allow    │
+│ (Hard decline)  │               │ / 2FA Challenge │              │  (Frictionless) │
+└─────────────────┘               └─────────────────┘              └─────────────────┘
+```
+
+1. **High Confidence ($\ge 90\%$):** Hard decline; block funds transfer immediately.
+2. **Elevated Suspicion ($\tau \le p < 90\%$):** Route to analyst review queue or prompt user for Step-Up Authentication (SMS OTP / Biometrics).
+3. **Normal Activity ($< \tau$):** Automated real-time approval without operational intervention.
+
+This triage logic is directly encoded in `api/predictor.py` through the `recommended_action` field.
