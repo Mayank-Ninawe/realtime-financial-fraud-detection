@@ -1,34 +1,24 @@
-# Core data science
-pandas
-numpy
+# API and model-serving dependencies are shared with the API container.
+-r requirements-api.txt
+
+# Feature engineering, graph analysis, and evaluation
 matplotlib
 seaborn
-scikit-learn
-xgboost
-joblib
 networkx
 
-# API and serving
-fastapi
-uvicorn
-httpx
-requests
-
-# ML / monitoring
+# Experiment tracking, feature store, and drift monitoring
 mlflow
 evidently==0.7.23
 feast==0.66.0
 
-# Streaming and analytics
+# Kafka and dashboard clients
 confluent-kafka
-
-# Dashboard and notebooks
+requests
 streamlit
+
+# Notebook and validation tooling
 jupyter
 ipykernel
-
-# Testing
+httpx
 pytest
-
-# Frontend support
-# Optional: keep these in sync with the frontend package if the app is expected to run from the Python environment.
+ruff

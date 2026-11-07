@@ -218,9 +218,9 @@ Containerized the FastAPI scoring service and deployed it to a local Minikube Ku
 
 **Deliverables**
 
-- `Dockerfile.api`
+- `infra/docker/Dockerfile.api`
 - `requirements-api.txt`
-- `docker-compose.yml`
+- `infra/docker/docker-compose.yml`
 - `.dockerignore`
 - Kubernetes Deployment manifest
 - Kubernetes Service manifest
@@ -232,7 +232,7 @@ Containerized the FastAPI scoring service and deployed it to a local Minikube Ku
 ### Phase 10 — Production Refactoring & Full-Stack Platform Integration
 
 Enhanced the system from isolated components into a cohesive, high-throughput, and observable fraud detection platform:
-- **Append-Only Streaming Persistence:** Transitioned Kafka consumer persistence from $O(N^2)$ full JSON rewrites to $O(1)$ line-delimited JSONL (`streamed_transactions.jsonl`), eliminating disk bottlenecks.
+- **Transactional Streaming Persistence:** Kafka consumer output is persisted through the shared database boundary with idempotent transaction, prediction, alert, case, and audit records. JSONL remains only for local consumer-error diagnostics.
 - **RESTful API Expansion & CORS:** Added `/cases`, `/alerts`, `/cases/{id}`, `/graph/summary`, `/metrics/overview`, and `/metrics/performance` with full CORS support.
 - **Modern React Command Center (SPA):** Built a React 18 + TypeScript + Tailwind CSS analyst console with live queue triage, dynamic SVG cluster graph, and sub-40ms latency diagnostics.
 - **Feast Architecture Standard:** Clarified Feast's role as the offline-to-online schema and definition parity validator while maintaining sub-10ms in-memory feature engineering for live scoring.

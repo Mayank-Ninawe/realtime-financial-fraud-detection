@@ -16,15 +16,15 @@ models/*
 mlruns/
 mlartifacts/
 monitoring_reports/
-feature_repo/data/
+backend/feature_store/feature_repo/data/
 
 notebooks/
 docs/
-tests/
-dashboard/
-streaming/
-graph/
-monitoring/
+backend/tests/
+backend/dashboard/
+backend/streaming/
+backend/graph/
+backend/monitoring/
 
 .env
 .env.*

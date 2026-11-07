@@ -1,580 +1,217 @@
-# SentinelGraph — Real-Time Financial Fraud Detection Platform
+# SentinelGraph
 
-SentinelGraph is an end-to-end real-time financial fraud detection platform built on the PaySim transaction dataset. It combines leakage-safe feature engineering, XGBoost-based scoring, FastAPI model serving, Kafka event streaming, a Streamlit analyst dashboard, MLflow experiment tracking, Feast feature-store consistency checks, Evidently drift monitoring, graph-based fraud-ring analysis, and Minikube Kubernetes deployment.
+SentinelGraph is a local, end-to-end fraud detection application built around the PaySim synthetic transaction dataset. It trains a leakage-aware XGBoost model, exposes model-backed scoring through FastAPI, persists scored cases, and provides React and Streamlit analyst interfaces.
 
-The project demonstrates a complete fraud decision workflow:
+The repository contains the application code and reproducibility tooling. The PaySim CSV, trained models, reports, databases, and other runtime outputs are intentionally excluded from Git.
 
-```text
-Transaction event
-→ Kafka ingestion
-→ Feature retrieval / construction
-→ XGBoost fraud scoring through FastAPI
-→ Alert generation and persistence
-→ Analyst review in Streamlit
-→ Drift monitoring and model governance
-```
+## What is implemented
 
-## Key capabilities
-
-- **Real-time transaction scoring:** FastAPI serves an XGBoost fraud-detection model.
-- **Streaming architecture:** Kafka producer replays PaySim transactions; a consumer consumes events, calls the scoring API, and persists alerts.
-- **Leakage-safe features:** Historical features use only information available before each transaction.
-- **Feature-store consistency:** Feast validates consistency between offline training features and online serving features.
-- **Explainable graph analysis:** Account relationships and suspicious connections support fraud-ring feasibility analysis.
-- **Analyst dashboard:** Streamlit enables review of scored transactions and alerts.
-- **Model governance:** MLflow tracks experiments, parameters, metrics, and model artifacts.
-- **Drift monitoring:** Evidently generates data-drift reports and supports review triggers.
-- **Containerized deployment:** The API is packaged with Docker and deployed to Minikube Kubernetes.
-- **Reproducible workflow:** The repository includes data validation, tests, documentation, and version-controlled implementation phases.
+- **Model pipeline:** CSV validation, chronological train/validation/test splits, derived transaction features, XGBoost training, evaluation, and MLflow tracking.
+- **Realtime scoring:** FastAPI endpoints for health, readiness, prediction, cases, metrics, and graph summaries.
+- **Persistence:** SQLite for local development; PostgreSQL is supported through SQLAlchemy and Docker Compose.
+- **Analyst interfaces:** React/Vite dashboard for the main application and a Streamlit dashboard for operational review.
+- **Streaming:** Kafka producer and consumer for replaying PaySim transactions and sending events to the scoring API.
+- **Monitoring and analysis:** Evidently drift reports, Feast feature snapshots, and NetworkX account-relationship analysis.
+- **Deployment:** Docker Compose files for PostgreSQL/Kafka and Kubernetes manifests for the API.
+- **Verification:** Pytest, Ruff, frontend TypeScript/Vite build, Playwright configuration, and GitHub Actions CI.
 
 ## Architecture
 
 ```text
-                        ┌────────────────────┐
-                        │    PaySim Dataset  │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │  Data Validation   │
-                        │  and Preprocessing │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │ Leakage-safe       │
-                        │ Feature Engineering│
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │   XGBoost Model    │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-┌──────────────────┐    ┌────────────────────┐    ┌────────────────────┐
-│ Kafka Producer   │───▶│    Kafka Broker    │───▶│  Kafka Consumer    │
-└──────────────────┘    └────────────────────┘    └─────────┬──────────┘
-                                                            │
-                                                            ▼
-                                                  ┌────────────────────┐
-                                                  │  FastAPI Scoring   │
-                                                  │        API         │
-                                                  └─────────┬──────────┘
-                                                            │
-                                                            ▼
-                                                  ┌────────────────────┐
-                                                  │  Alert Persistence │
-                                                  └─────────┬──────────┘
-                                                            │
-                                                            ▼
-                                                  ┌────────────────────┐
-                                                  │ Streamlit Dashboard│
-                                                  └────────────────────┘
+PaySim CSV
+   |
+   +--> training/evaluation --> models/ and reports/
+   |
+   +--> Kafka producer --> Kafka --> consumer --> FastAPI /predict
+                                                   |
+                                                   +--> local database
+                                                   +--> React dashboard
+                                                   +--> Streamlit dashboard
 ```
 
-Supporting MLOps components:
+The deployed model is `realtime_safe_xgboost`. Its feature set uses transaction type, amount, pre-transaction balances, and derived pre-transaction indicators. Post-transaction balance fields are used only by the diagnostic `leakage_suspect_xgboost` experiment and are not used by the primary scoring path.
+
+## Repository layout
 
 ```text
-Feast Feature Store → Consistent offline/online features
-MLflow → Experiment tracking and model artifacts
-Evidently → Data-drift monitoring and review trigger
-Docker → API and Kafka containerization
-Minikube → Local Kubernetes deployment of the API
+backend/
+  api/                 FastAPI application, schemas, and predictor
+  dashboard/           Streamlit analyst dashboard
+  feature_store/       Feast repository and snapshot generation
+  graph/               Account graph construction and inspection
+  monitoring/          Evidently drift report generation
+  persistence/         SQLAlchemy database layer
+  src/fraud_detection/ Data loading, features, training, and evaluation
+  streaming/           Kafka producer and consumer
+  tests/               Backend tests
+frontend/              React + TypeScript + Vite dashboard
+infra/docker/          API, PostgreSQL, and Kafka Compose definitions
+infra/k8s/             Kubernetes API manifests
+data/                  Local dataset and generated transaction data
+models/                Local trained model artifacts
+reports/               Local evaluation and training outputs
 ```
 
-## Dataset
+## Requirements
 
-The project uses the [PaySim Synthetic Financial Dataset](https://www.kaggle.com/datasets/ealaxi/paysim1).
+- Python 3.10
+- Node.js 20 and npm
+- The PaySim dataset
+- Docker Desktop, if PostgreSQL, Kafka, or the containerized API is required
 
-| Metric | Value |
-|---|---|
-| Source rows | 6,362,620 |
-| Preserved processed rows | 6,362,620 |
-| Fraud transactions | 8,213 |
-| Non-fraud transactions | 6,354,407 |
-| Fraud rate | Approximately 0.129% |
-| Simulation duration | Approximately 30 days of hourly steps |
-
-The ingestion adapter preserves all source rows and fraud labels. A preprocessing issue that initially removed 16 zero-amount fraudulent transactions was identified and corrected.
-
-## Technology stack
-
-| Layer | Technology |
-|---|---|
-| Language | Python |
-| Data processing | Pandas, NumPy |
-| Machine learning | XGBoost, scikit-learn |
-| Feature store | Feast |
-| Model tracking | MLflow |
-| Drift monitoring | Evidently |
-| API | FastAPI, Uvicorn |
-| Streaming | Apache Kafka |
-| Dashboard | Streamlit |
-| Graph analysis | NetworkX-based feasibility workflow |
-| Containers | Docker, Docker Compose |
-| Kubernetes | Minikube, kubectl |
-| Quality tools | Pytest, Ruff |
-| Version control | Git, GitHub |
-
-## Repository structure
-
-```text
-realtime-financial-fraud-detection/
-├── api/
-│   ├── main.py
-│   ├── predictor.py
-│   ├── schemas.py
-│   └── __init__.py
-├── dashboard/
-│   └── app.py
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── sample/
-├── docs/
-│   ├── project_plan.md
-│   ├── graph_feasibility.md
-│   └── deployment_status.md
-├── feature_repo/
-│   └── ...
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── src/
-│   └── public/
-├── k8s/
-│   ├── fraud-api-deployment.yaml
-│   └── fraud-api-service.yaml
-├── models/
-├── notebooks/
-│   └── 01_eda.ipynb
-├── reports/
-├── scripts/
-│   ├── adapters/
-│   └── ...
-├── src/
-├── streaming/
-├── tests/
-├── .dockerignore
-├── .gitignore
-├── docker-compose.yml
-├── docker-compose.kafka.yml
-├── Dockerfile.api
-├── README.md
-├── requirements.txt
-└── .venv/
-```
-
-Large generated artifacts such as raw data, processed Parquet files, trained models, MLflow runs, and monitoring reports are excluded from Git through `.gitignore`.
-
-## Frontend dashboard
-
-A React + TypeScript + Vite dashboard lives in the `frontend/` directory and serves as the primary demo interface for the fraud-monitoring experience. It is designed to work with the existing FastAPI service and exposes the real `/health` and `/predict` behavior without replacing the backend or ML pipeline.
-
-### Run frontend locally
-
-```bash
-cd frontend
-npm install
-npm run dev -- --host 0.0.0.0 --port 5173
-```
-
-### Frontend stack
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- Recharts
-- shadcn/ui-inspired component primitives
-
-### Backend integration
-
-The frontend calls the existing Python backend endpoints:
-
-- `GET /health` for service status
-- `POST /predict` with a transaction payload to score a transaction
-
-The legacy Streamlit dashboard remains available as a fallback and is intentionally preserved.
-
-## Core workflow
-
-### 1. Data ingestion and validation
-
-The PaySim adapter normalizes raw transactions into a consistent schema:
-
-```text
-transaction_id
-event_time
-sender_id
-receiver_id
-transaction_type
-amount
-is_fraud
-```
-
-It validates row preservation, fraud-label preservation, duplicate handling, chronological ordering, and required fields.
-
-### 2. Leakage-safe feature engineering
-
-Features are computed using only information available before the transaction being scored.
-
-For a transaction at time \(T\):
-
-```text
-Allowed: transactions with event_time < T
-Excluded: current transaction and all future transactions
-```
-
-This prevents future-data leakage and makes the workflow more realistic for production fraud detection.
-
-### 3. Model training
-
-An XGBoost classifier is trained on engineered features. Because the dataset is highly imbalanced, evaluation focuses on fraud-relevant metrics rather than accuracy alone.
-
-Typical evaluation metrics include:
-
-- Precision
-- Recall
-- F1-score
-- PR-AUC
-- ROC-AUC
-- Precision at top-k alerts
-
-### 4. FastAPI serving
-
-FastAPI loads the trained model and exposes scoring and health endpoints.
-
-Example health response:
-
-```json
-{
-  "status": "healthy",
-  "service": "fraud-detection-api"
-}
-```
-
-### 5. Kafka streaming & append-only persistence
-
-The producer replays PaySim transactions to the Kafka topic `fraud-transactions`. The consumer reads events, validates schemas, scores each transaction via FastAPI `/predict`, and persists scored records and alerts using high-performance append-only JSONL (`data/processed/streamed_transactions.jsonl`).
-
-```text
-Kafka producer → Kafka topic → Kafka consumer → FastAPI → Append-only JSONL Store
-```
-
-Unlike full JSON list dumps which incur $O(N^2)$ write penalties, append-only JSONL ensures $O(1)$ constant-time event writes under high-throughput streaming.
-
-### 6. Feast feature store architecture & role
-
-The feature store is configured in `feature_repo/` with an SQLite online store (`feature_repo/data/online_store.db`), registry (`registry.db`), and Parquet offline sources (`transaction_features.parquet`):
-
-- **Role & Purpose:** Feast serves as the architectural standard for **offline-to-online feature definition parity** and historical feature snapshot validation (`test_feast_snapshot.py`).
-- **Runtime Inference Decoupling:** In high-velocity transaction fraud scoring (where sub-10ms latency is mandatory), the FastAPI scoring service computes derived pre-transaction features in-memory directly from the transaction envelope. Feast guarantees that the exact same feature names, types, and derivation logic are standardized and reproducible across offline training pipelines and online store registries.
-
-### 7. Analyst dashboards & command center
-
-The platform provides two complementary user interfaces:
-1. **React Command Center (`frontend/`):** A modern React 18 + TypeScript + Tailwind CSS SPA connected to real FastAPI REST endpoints (`/alerts`, `/cases`, `/graph/summary`, `/metrics/overview`, `/metrics/performance`). Analysts can review live fraud queues, resolve or escalate cases, and explore top fraud ring clusters.
-2. **Streamlit Console (`dashboard/app.py`):** A Python-native operational dashboard providing historical PaySim label inspection, manual transaction simulation, and Evidently drift review.
-
-### 8. Monitoring and governance
-
-MLflow records experiment metadata and model artifacts. Evidently monitors input-data drift and generates reports that can trigger model review.
-
-## Local setup
-
-### Prerequisites
-
-- Python 3.10+
-- Git
-- Docker Desktop
-- Minikube
-- kubectl
-
-### Create and activate a virtual environment
+Create the virtual environment and install Python dependencies:
 
 ```powershell
-python -m venv .venv
+py -3.10 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-### Run tests and linting
+Install frontend dependencies:
 
 ```powershell
-pytest
-ruff check .
+cd frontend
+npm ci
+cd ..
 ```
 
-## Running the API locally
+## Dataset and generated artifacts
+
+Download `PS_20174392719_1491204439457_log.csv` from the PaySim dataset and place it at:
+
+```text
+data/raw/PS_20174392719_1491204439457_log.csv
+```
+
+The code validates the required PaySim columns before training. Do not commit the CSV, model binaries, MLflow database/artifacts, generated reports, or local application database.
+
+The current local evaluation artifact records the following for the realtime-safe model:
+
+| Metric | Value |
+|---|---:|
+| Test average precision | 0.9926426882 |
+| Test precision | 0.4553283100 |
+| Test recall | 1.0000000000 |
+| Test F2 score | 0.8069439145 |
+| Test alert rate | 0.0269869858 |
+| Test false-positive rate | 0.0148819152 |
+
+These values describe the checked-in code and local generated report, not a production performance guarantee.
+
+## Run locally
+
+### FastAPI backend
+
+From the repository root:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-uvicorn api.main:app --app-dir . --port 8000
+$env:PYTHONPATH = "$PWD\backend\src;$PWD\backend"
+python -m uvicorn api.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Health check:
+Health and readiness:
 
 ```powershell
 curl.exe http://127.0.0.1:8000/health
+curl.exe http://127.0.0.1:8000/readyz
 ```
 
-Expected response:
+OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 
-```json
-{
-  "status": "healthy",
-  "service": "fraud-detection-api"
-}
+### React frontend
+
+In a second terminal:
+
+```powershell
+cd frontend
+npm run dev
 ```
 
-## Running the dashboard
+Open `http://127.0.0.1:5173`. Vite proxies `/api/*` to the FastAPI service on port 8000.
 
-From the repository root (`D:\Nexvia-Internship\realtime-financial-fraud-detection`),
-start the API first in one PowerShell terminal:
+### Streamlit dashboard
+
+In another terminal:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-$env:PYTHONPATH = "$PWD\src"
-uvicorn api.main:app --app-dir . --host 127.0.0.1 --port 8000
+python -m streamlit run backend\dashboard\app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-In a second PowerShell terminal, also from the repository root:
+Open `http://127.0.0.1:8501`. The dashboard can be used without Kafka, but the API must be running.
+
+## Train and evaluate
+
+With the dataset in place:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-streamlit run dashboard\app.py
+$env:PYTHONPATH = "$PWD\backend\src;$PWD\backend"
+python -m fraud_detection.train
+python -m fraud_detection.evaluate
 ```
 
-Open the URL shown by Streamlit, usually:
+Training writes model files to `models/` and a summary to `reports/training_summary.json`. Evaluation writes metrics and plots to `reports/`. MLflow uses the local `mlflow.db` tracking database and `mlartifacts/`.
 
-```text
-http://127.0.0.1:8501
-```
+## Kafka workflow
 
-The dashboard checks `/health` and then performs a model-backed readiness
-prediction. “API reachable” is therefore kept distinct from “model loaded and
-prediction ready.” The Overview page labels PaySim `isFraud` counts as
-historical data, while the Fraud alerts page only displays locally persisted
-Kafka consumer records. Case status updates are local JSON records in
-`data\processed\cases.json`; they are not an external case-management system.
-
-The dashboard can be explored without Kafka. If Kafka is not running, it
-shows “Streaming unavailable” and keeps historical analysis and verified API
-scoring available.
-
-## Running Kafka streaming
-
-Start the Kafka broker:
+Start Kafka:
 
 ```powershell
-docker compose -f docker-compose.kafka.yml up -d
+docker compose -f infra\docker\docker-compose.kafka.yml up -d
 ```
 
-Run the producer and consumer using the project’s streaming scripts.
-
-Stop Kafka when finished:
+Start the producer and consumer from separate terminals after starting the API:
 
 ```powershell
-docker compose -f docker-compose.kafka.yml down
+$env:PYTHONPATH = "$PWD\backend\src;$PWD\backend"
+python -m streaming.producer
 ```
-
-## Docker API build
-
-Build the API image:
 
 ```powershell
-docker compose build --no-cache fraud-api
+$env:PYTHONPATH = "$PWD\backend\src;$PWD\backend"
+python -m streaming.consumer
 ```
 
-Successful build result:
+The producer replays the PaySim input to Kafka. The consumer calls `/predict` and persists scored events. Kafka-generated JSONL files and the local database remain ignored.
 
-```text
-✔ Image realtime-financial-fraud-detection-fraud-api Built
-```
+## Docker Compose
 
-The API image includes only the runtime dependencies and source code needed for serving.
-
-## Kubernetes deployment
-
-### Start Minikube
+For the API with PostgreSQL, copy `.env.example` to `.env`, replace the placeholder values, and run:
 
 ```powershell
-$env:MINIKUBE_HOME = "D:\minikube-home"
-minikube start --driver=docker
+Copy-Item .env.example .env
+docker compose --env-file .env -f infra\docker\docker-compose.yml up --build
 ```
 
-Verify the cluster:
+The API is exposed on port 8000. The container expects model files and `reports/evaluation_results.json` to exist locally before it is built.
+
+## Verification
 
 ```powershell
-minikube status
-kubectl get nodes
+$env:PYTHONPATH = "$PWD\backend\src;$PWD\backend"
+ruff check backend
+pytest -q
 ```
 
-Expected node status:
-
-```text
-NAME       STATUS   ROLES           AGE   VERSION
-minikube   Ready    control-plane   ...   v1.37.0
-```
-
-### Load the API image
+Build the frontend:
 
 ```powershell
-minikube image load realtime-financial-fraud-detection-fraud-api:latest
+cd frontend
+npm ci
+npm run build
 ```
 
-### Deploy the API
+CI runs the backend lint/tests, the frontend build, and Docker Compose configuration validation on pushes to `main`/`master` and on pull requests.
 
-```powershell
-kubectl apply -f k8s/fraud-api-deployment.yaml
-kubectl apply -f k8s/fraud-api-service.yaml
-```
+## Configuration
 
-### Verify deployment
+`.env.example` documents local configuration:
 
-```powershell
-kubectl get pods -l app=fraud-api
-kubectl get svc fraud-api
-kubectl logs -l app=fraud-api --tail=100
-```
+- `POSTGRES_PASSWORD`: PostgreSQL password for Compose.
+- `CORS_ALLOWED_ORIGINS`: comma-separated frontend origins.
+- `API_KEY`: optional API key enforced by the FastAPI middleware when set.
+- `PREDICT_RETRY_COUNT`: Kafka consumer retry count for prediction requests.
 
-Expected pod status:
-
-```text
-NAME                         READY   STATUS    RESTARTS   AGE
-fraud-api-77cf7f7cdb-shcqx   1/1     Running   0          ...
-```
-
-### Access the API locally
-
-```powershell
-minikube service fraud-api --url
-```
-
-Then test:
-
-```powershell
-curl.exe http://127.0.0.1:63861/health
-```
-
-Expected:
-
-```json
-{
-  "status": "healthy",
-  "service": "fraud-detection-api"
-}
-```
-
-## Deployment verification
-
-The following deployment milestones were verified:
-
-| Component | Status |
-|---|---|
-| Docker Desktop | Verified |
-| Kafka in Docker Compose | Verified |
-| FastAPI Docker image | Built successfully |
-| Minikube installation | Complete |
-| Minikube cluster | Running and Ready |
-| Kubernetes Deployment | Created |
-| Kubernetes Service | Created |
-| API pod | `1/1 Running` |
-| Readiness probe | Passing |
-| `/health` endpoint | HTTP 200 |
-| Kubernetes API deployment | Verified complete |
-
-## Graph feasibility
-
-The project evaluates whether account-relationship graphs can improve fraud detection by identifying suspicious connections and potential fraud rings.
-
-Graph nodes include sender and receiver accounts, while transactions connect them. Temporal graph features use only prior transactions, preserving the leakage-safety rule.
-
-Example graph relationship:
-
-```text
-Account A → Transaction → Account B
-Account B → Transaction → Account C
-Account C → Transaction → Account D
-```
-
-If multiple connected accounts participate in suspicious or fraud-labeled transactions, the connected component may indicate coordinated fraud behavior.
-
-See [`docs/graph_feasibility.md`](docs/graph_feasibility.md) for the full feasibility assessment.
-
-## MLOps workflow
-
-### MLflow
-
-MLflow is used to track:
-
-- Experiment parameters
-- Evaluation metrics
-- Model artifacts
-- Model versions
-- Training metadata
-
-### Evidently
-
-Evidently is used to monitor:
-
-- Feature distribution drift
-- Data-quality changes
-- Input-data stability
-- Review triggers for model retraining or investigation
-
-### Feast
-
-Feast is used to maintain consistency between:
-
-- Offline features used for training
-- Online features used during serving
-
-## Project documentation
-
-- [`docs/system_architecture_and_refactoring.md`](docs/system_architecture_and_refactoring.md) — System architecture enhancements, streaming optimizations, and integration verification.
-- [`docs/project_plan.md`](docs/project_plan.md) — Full phased implementation plan and completion status.
-- [`docs/graph_feasibility.md`](docs/graph_feasibility.md) — Graph-based fraud-ring analysis and feasibility assessment.
-- [`docs/deployment_status.md`](docs/deployment_status.md) — Docker, Kafka, Minikube, and Kubernetes deployment verification.
-
-## Cleanup
-
-Stop Kubernetes resources:
-
-```powershell
-kubectl delete -f k8s/fraud-api-service.yaml
-kubectl delete -f k8s/fraud-api-deployment.yaml
-minikube stop
-```
-
-Stop Kafka:
-
-```powershell
-docker compose -f docker-compose.kafka.yml down
-```
-
-## Future improvements
-
-- Deploy Kafka inside Kubernetes using StatefulSets and persistent volumes.
-- Add production-grade secrets management.
-- Add horizontal pod autoscaling.
-- Add CI/CD pipelines for tests, linting, Docker builds, and deployments.
-- Benchmark p95 prediction latency under concurrent traffic.
-- Implement a complete analyst-feedback retraining loop.
-- Extend graph analysis into a scheduled fraud-ring detection service.
-- Add Prometheus and Grafana-based operational monitoring.
-
-## Professional summary
-
-SentinelGraph demonstrates a production-oriented fraud detection workflow: validated PaySim data is transformed into leakage-safe features, scored by an XGBoost model through FastAPI, streamed through Kafka, reviewed through Streamlit, monitored with Evidently, tracked with MLflow, and deployed to Minikube Kubernetes.
-
-The project emphasizes reproducibility, data integrity, explainability, and deployment verification rather than presenting an isolated machine-learning notebook.
+Do not commit `.env` or real credentials.

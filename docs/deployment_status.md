@@ -47,7 +47,7 @@ docker run hello-world
 Docker Compose was used to run the Kafka broker locally.
 
 ```powershell
-docker compose -f docker-compose.kafka.yml up -d
+docker compose -f infra\docker\docker-compose.kafka.yml up -d
 ```
 
 Kafka producer and consumer workflows were verified by replaying PaySim transaction events, consuming them, calling the FastAPI scoring service, and persisting scored alerts.
@@ -57,12 +57,12 @@ Kafka producer and consumer workflows were verified by replaying PaySim transact
 The repository includes the following deployment configuration:
 
 ```text
-Dockerfile.api
+infra\docker\Dockerfile.api
 requirements-api.txt
-docker-compose.yml
+infra\docker\docker-compose.yml
 .dockerignore
-k8s/fraud-api-deployment.yaml
-k8s/fraud-api-service.yaml
+infra\k8s\fraud-api-deployment.yaml
+infra\k8s\fraud-api-service.yaml
 ```
 
 The API image uses a minimal runtime dependency file and includes only the API and source code required for serving.
@@ -70,7 +70,7 @@ The API image uses a minimal runtime dependency file and includes only the API a
 The Docker image was successfully built:
 
 ```powershell
-docker compose build --no-cache fraud-api
+docker compose -f infra\docker\docker-compose.yml build --no-cache fraud-api
 ```
 
 Build result:
@@ -151,8 +151,8 @@ minikube image load realtime-financial-fraud-detection-fraud-api:latest
 The Kubernetes resources were applied:
 
 ```powershell
-kubectl apply -f k8s/fraud-api-deployment.yaml
-kubectl apply -f k8s/fraud-api-service.yaml
+kubectl apply -f infra\k8s\fraud-api-deployment.yaml
+kubectl apply -f infra\k8s\fraud-api-service.yaml
 ```
 
 Created resources:
@@ -250,7 +250,7 @@ minikube service fraud-api --url
 ### Run Kafka
 
 ```powershell
-docker compose -f docker-compose.kafka.yml up -d
+docker compose -f infra\docker\docker-compose.kafka.yml up -d
 ```
 
 ### Run local API and dashboard
@@ -258,16 +258,16 @@ docker compose -f docker-compose.kafka.yml up -d
 ```powershell
 .\.venv\Scripts\Activate.ps1
 uvicorn api.main:app --app-dir . --port 8000
-streamlit run dashboard/app.py
+streamlit run backend\dashboard\app.py
 ```
 
 ## Cleanup commands
 
 ```powershell
-kubectl delete -f k8s/fraud-api-service.yaml
-kubectl delete -f k8s/fraud-api-deployment.yaml
+kubectl delete -f infra\k8s\fraud-api-service.yaml
+kubectl delete -f infra\k8s\fraud-api-deployment.yaml
 minikube stop
-docker compose -f docker-compose.kafka.yml down
+docker compose -f infra\docker\docker-compose.kafka.yml down
 ```
 
 ## Known limitations

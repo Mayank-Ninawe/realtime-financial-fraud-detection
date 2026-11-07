@@ -10,7 +10,7 @@ This document details the architectural enhancements, performance optimizations,
 
 | Component | Previous State | Refactored State | Impact |
 |---|---|---|---|
-| **Streaming Persistence** | $O(N^2)$ full JSON list re-write on each event | $O(1)$ append-only JSONL format (`streamed_transactions.jsonl`) | Eliminates disk I/O bottlenecks under high event throughput. |
+| **Streaming Persistence** | Local JSON files were the runtime source of truth | Transactional database with idempotent transactions, predictions, alerts, cases, and audit events | Keeps Kafka output, API responses, and analyst actions consistent. |
 | **API & Serving** | Isolated `/health` and `/predict` only | Added `/cases`, `/alerts`, `/cases/{id}`, `/graph/summary`, `/metrics/overview`, `/metrics/performance`, with CORS middleware | Enables dynamic, unified frontend and third-party orchestration. |
 | **React Frontend** | Hardcoded mock arrays (`ALR-4412`, etc.) & compile-time JSON imports | Real-time FastAPI REST integration with interactive case triage | Fully operational analyst command center. |
 | **Feature Store (Feast)** | Unclear architectural purpose & schema disconnect | Explicitly documented as offline/online feature parity validator | Clear MLOps boundaries without latency penalty in live inference. |
@@ -20,14 +20,12 @@ This document details the architectural enhancements, performance optimizations,
 
 ## 2. Component Specifications
 
-### 2.1 Append-Only Streaming Persistence (`streaming/consumer.py`)
+### 2.1 Transactional Streaming Persistence (`backend/persistence/database.py`)
 
-- **Design:** Kafka consumer scores transactions via FastAPI and immediately writes the event payload and decision metadata to disk.
-- **Persistence Pattern:** High-performance line-delimited JSON (`.jsonl`).
-- **File Paths:**
-  - `data/processed/streamed_transactions.jsonl`
-  - `data/processed/consumer_errors.jsonl`
-- **Complexity:** $O(1)$ constant time append write per event. Backward compatibility supports legacy `.json` list files seamlessly.
+- **Design:** Kafka consumer scores transactions via FastAPI and persists the event, prediction, alert, and case through one database boundary.
+- **Persistence Pattern:** PostgreSQL in production and SQLite for local development.
+- **Idempotency:** Transaction IDs and event IDs prevent duplicate scored events and cases.
+- **Diagnostics:** `data/processed/consumer_errors.jsonl` remains a local error log only.
 
 ### 2.2 FastAPI Endpoints (`api/main.py`)
 
@@ -41,7 +39,7 @@ This document details the architectural enhancements, performance optimizations,
 
 ### 2.3 Feast Feature Store Architecture
 
-- **Registry & Store:** `feature_repo/feature_store.yaml` configuring SQLite online store (`feature_repo/data/online_store.db`).
+- **Registry & Store:** `backend/feature_store/feature_repo/feature_store.yaml` configuring the local Feast store.
 - **Architectural Boundary:** Feast standardizes feature names and types across training and batch serving pipelines. To maintain sub-10ms real-time latency SLAs, the live scoring service constructs derived features directly from the transaction envelope, while Feast guarantees parity and reproducible definitions.
 
 ---
@@ -51,7 +49,7 @@ This document details the architectural enhancements, performance optimizations,
 ### 3.1 Unit Test Suite (`pytest`)
 All 27 test cases across API, streaming, graph features, drift monitoring, and Feast snapshot pass:
 ```text
-tests/test_api.py::test_health_check PASSED
+backend/tests/test_api.py::test_health_check PASSED
 tests/test_api.py::test_predict_valid_transaction PASSED
 tests/test_api.py::test_predict_invalid_amount PASSED
 tests/test_api.py::test_get_cases_and_alerts PASSED

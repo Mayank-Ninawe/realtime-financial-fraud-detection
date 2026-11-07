@@ -116,11 +116,13 @@ export type PerformanceMetricsResponse = {
 };
 
 const API_BASE = '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 async function fetchJson<T>(url: string, options?: RequestInit) {
   const response = await fetch(`${API_BASE}${url}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
       ...(options?.headers ?? {}),
     },
     ...options,
