@@ -8,7 +8,7 @@ KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
 KAFKA_TOPIC = "fraud-transactions"
 KAFKA_CONSUMER_GROUP = "fraud-scoring-consumer-group"
 
-FASTAPI_PREDICT_URL = "http://127.0.0.1:8000/predict"
+FASTAPI_PREDICT_URL = "https://sentinelgraph-api-n090.onrender.com/predict"
 
 RAW_DATA_PATH = (
     PROJECT_ROOT

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import uuid
 import time
 from datetime import datetime, timezone
 
@@ -60,8 +61,9 @@ def transaction_to_event(row: pd.Series, sequence_number: int) -> dict:
         for column in PAYLOAD_COLUMNS
     }
 
-    transaction["transaction_id"] = f"paysim_{int(row.name)}_{sequence_number}"
-
+    transaction["transaction_id"] = (
+        f"paysim_{int(row.name)}_{sequence_number}_{uuid.uuid4().hex[:8]}"
+    )
     return {
         "event_id": f"event_{transaction['transaction_id']}",
         "event_type": "transaction",

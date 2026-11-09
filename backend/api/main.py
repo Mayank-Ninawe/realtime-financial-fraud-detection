@@ -5,6 +5,7 @@ import logging
 import os
 import time
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from fraud_detection.config import PROJECT_ROOT, REPORT_DIR
 from persistence.database import (
     initialize_database,
     list_cases,
+    persist_scored_event,
     runtime_counts,
     update_case,
 )
@@ -138,13 +140,21 @@ def readiness_check():
 @app.post("/predict", response_model=PredictionResponse)
 @app.post("/api/v1/predict", response_model=PredictionResponse)
 def predict_transaction(transaction: TransactionRequest) -> PredictionResponse:
-    """Score a single financial transaction for fraud risk."""
+    """Score a single financial transaction and persist high-risk alerts."""
     try:
         result = score_transaction(transaction.model_dump())
     except FileNotFoundError as error:
         raise HTTPException(status_code=503, detail=str(error))
     except (ValidationError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
+
+    persist_scored_event(
+        DATABASE,
+        event_id=f"api_{result['transaction_id']}",
+        event_timestamp=datetime.now(timezone.utc).isoformat(),
+        transaction=transaction.model_dump(),
+        prediction=result,
+    )
 
     return PredictionResponse(**result)
 
