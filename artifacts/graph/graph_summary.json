@@ -1,0 +1,210 @@
+{
+  "analysis_window": {
+    "max_step": 24,
+    "max_rows": 200000,
+    "actual_transaction_rows": 200000,
+    "fraud_transaction_rows": 147
+  },
+  "graph_metrics": {
+    "node_count": 294797,
+    "edge_count": 200000,
+    "weakly_connected_component_count": 94797,
+    "largest_weakly_connected_component_size": 85,
+    "fraud_linked_relationship_count": 147
+  },
+  "top_fraud_linked_accounts": [
+    {
+      "account_id": "C410033330",
+      "fraud_linked_transaction_count": 2.0,
+      "fraud_linked_ratio": 0.1,
+      "in_degree": 20,
+      "out_degree": 0,
+      "total_transaction_count": 20.0
+    },
+    {
+      "account_id": "C716083600",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.017241379310344827,
+      "in_degree": 58,
+      "out_degree": 0,
+      "total_transaction_count": 58.0
+    },
+    {
+      "account_id": "C667346055",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.017857142857142856,
+      "in_degree": 56,
+      "out_degree": 0,
+      "total_transaction_count": 56.0
+    },
+    {
+      "account_id": "C932583850",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.01818181818181818,
+      "in_degree": 55,
+      "out_degree": 0,
+      "total_transaction_count": 55.0
+    },
+    {
+      "account_id": "C803116137",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.02040816326530612,
+      "in_degree": 49,
+      "out_degree": 0,
+      "total_transaction_count": 49.0
+    },
+    {
+      "account_id": "C766681183",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.022222222222222223,
+      "in_degree": 45,
+      "out_degree": 0,
+      "total_transaction_count": 45.0
+    },
+    {
+      "account_id": "C991505714",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.02631578947368421,
+      "in_degree": 38,
+      "out_degree": 0,
+      "total_transaction_count": 38.0
+    },
+    {
+      "account_id": "C2094777811",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.02857142857142857,
+      "in_degree": 35,
+      "out_degree": 0,
+      "total_transaction_count": 35.0
+    },
+    {
+      "account_id": "C644345897",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.03125,
+      "in_degree": 32,
+      "out_degree": 0,
+      "total_transaction_count": 32.0
+    },
+    {
+      "account_id": "C1570256460",
+      "fraud_linked_transaction_count": 1.0,
+      "fraud_linked_ratio": 0.03225806451612903,
+      "in_degree": 31,
+      "out_degree": 0,
+      "total_transaction_count": 31.0
+    }
+  ],
+  "top_fraud_relationships": [
+    {
+      "nameOrig": "C351297720",
+      "nameDest": "C766681183",
+      "transaction_count": 1,
+      "total_amount": 10000000.0,
+      "average_amount": 10000000.0,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 4,
+      "last_step": 4
+    },
+    {
+      "nameOrig": "C7162498",
+      "nameDest": "C945327594",
+      "transaction_count": 1,
+      "total_amount": 10000000.0,
+      "average_amount": 10000000.0,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 4,
+      "last_step": 4
+    },
+    {
+      "nameOrig": "C1588880909",
+      "nameDest": "C1570256460",
+      "transaction_count": 1,
+      "total_amount": 5460002.91,
+      "average_amount": 5460002.91,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 7,
+      "last_step": 7
+    },
+    {
+      "nameOrig": "C666654362",
+      "nameDest": "C1726301214",
+      "transaction_count": 1,
+      "total_amount": 5460002.91,
+      "average_amount": 5460002.91,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 7,
+      "last_step": 7
+    },
+    {
+      "nameOrig": "C735463888",
+      "nameDest": "C1548348754",
+      "transaction_count": 1,
+      "total_amount": 4022667.54,
+      "average_amount": 4022667.54,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 13,
+      "last_step": 13
+    },
+    {
+      "nameOrig": "C79951219",
+      "nameDest": "C1499489682",
+      "transaction_count": 1,
+      "total_amount": 4022667.54,
+      "average_amount": 4022667.54,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 13,
+      "last_step": 13
+    },
+    {
+      "nameOrig": "C1098250442",
+      "nameDest": "C1140712423",
+      "transaction_count": 1,
+      "total_amount": 3964129.99,
+      "average_amount": 3964129.99,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 12,
+      "last_step": 12
+    },
+    {
+      "nameOrig": "C576568419",
+      "nameDest": "C1571546632",
+      "transaction_count": 1,
+      "total_amount": 3964129.99,
+      "average_amount": 3964129.99,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 12,
+      "last_step": 12
+    },
+    {
+      "nameOrig": "C2044690596",
+      "nameDest": "C932583850",
+      "transaction_count": 1,
+      "total_amount": 2930418.44,
+      "average_amount": 2930418.44,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 4,
+      "last_step": 4
+    },
+    {
+      "nameOrig": "C2047521920",
+      "nameDest": "C449261773",
+      "transaction_count": 1,
+      "total_amount": 2930418.44,
+      "average_amount": 2930418.44,
+      "fraud_transaction_count": 1,
+      "fraud_rate": 1.0,
+      "first_step": 4,
+      "last_step": 4
+    }
+  ],
+  "interpretation": "Fraud-linked accounts and relationships are investigation candidates based on historical labelled transactions in the selected PaySim analysis window. Graph connectivity alone does not establish a confirmed fraud ring."
+}

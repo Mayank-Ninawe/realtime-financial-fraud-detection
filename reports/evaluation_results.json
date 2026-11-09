@@ -1,0 +1,78 @@
+{
+  "realtime_safe": {
+    "model": "realtime_safe_xgboost",
+    "feature_set": "realtime_safe",
+    "threshold": 9.248169953934848e-05,
+    "test_average_precision": 0.9926426881660899,
+    "test_precision": 0.45532831001076424,
+    "test_recall": 1.0,
+    "true_negatives": 66990,
+    "false_positives": 1012,
+    "false_negatives": 0,
+    "true_positives": 846,
+    "f2_score": 0.8069439145364364,
+    "alert_rate": 0.02698698582384383,
+    "false_positive_rate": 0.014881915237787124,
+    "brier_score": 0.0007374572933255168
+  },
+  "leakage_suspect": {
+    "model": "leakage_suspect_xgboost",
+    "feature_set": "leakage_suspect",
+    "threshold": 0.00010839186143130064,
+    "test_average_precision": 0.9941604501093831,
+    "test_precision": 0.4480932203389831,
+    "test_recall": 1.0,
+    "true_negatives": 66960,
+    "false_positives": 1042,
+    "false_negatives": 0,
+    "true_positives": 846,
+    "f2_score": 0.8023520485584219,
+    "alert_rate": 0.02742272832907274,
+    "false_positive_rate": 0.015323078732978442,
+    "brier_score": 0.000703017133981775
+  },
+  "realtime_safe_temporal_windows": [
+    {
+      "window": 1,
+      "start_step": 669,
+      "end_step": 693,
+      "rows": 51792,
+      "fraud_rows": 266,
+      "average_precision": 0.9888298222096646,
+      "precision": 0.25650916104146576,
+      "recall": 1.0,
+      "f2_score": 0.6330318895763922,
+      "alert_rate": 0.020022397281433426,
+      "false_positive_rate": 0.014963319489189924,
+      "brier_score": 0.0007040617777470889
+    },
+    {
+      "window": 2,
+      "start_step": 694,
+      "end_step": 718,
+      "rows": 16760,
+      "fraud_rows": 284,
+      "average_precision": 0.9914962297873209,
+      "precision": 0.540952380952381,
+      "recall": 1.0,
+      "f2_score": 0.8549066827212523,
+      "alert_rate": 0.031324582338902146,
+      "false_positive_rate": 0.014627336732216558,
+      "brier_score": 0.0007279723293882083
+    },
+    {
+      "window": 3,
+      "start_step": 719,
+      "end_step": 743,
+      "rows": 296,
+      "fraud_rows": 296,
+      "average_precision": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f2_score": 1.0,
+      "alert_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "brier_score": 0.007117823977201322
+    }
+  ]
+}

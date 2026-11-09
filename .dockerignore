@@ -6,7 +6,10 @@ __pycache__
 .ipynb_checkpoints
 
 data/
-artifacts/
+artifacts/*
+!artifacts/
+!artifacts/graph/
+!artifacts/graph/graph_summary.json
 reports/*
 !reports/
 !reports/evaluation_results.json
